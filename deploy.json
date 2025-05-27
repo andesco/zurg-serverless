@@ -1,0 +1,31 @@
+{
+  "name": "Zurg Serverless",
+  "description": "Serverless Real-Debrid WebDAV server for Infuse with STRM files",
+  "repository": "https://github.com/your-username/zurg-serverless",
+  "logo": "https://real-debrid.com/favicon.ico",
+  "success_url": "/",
+  "env": {
+    "RD_TOKEN": {
+      "description": "Real-Debrid API token (get from https://real-debrid.com/apitoken)",
+      "required": true
+    },
+    "RD_UNRESTRICT_IP": {
+      "description": "Fixed IP address for unrestrict calls (prevents account bans)",
+      "required": false
+    },
+    "STRM_TOKEN": {
+      "description": "Optional token for STRM file protection",
+      "required": false
+    }
+  },
+  "build": {
+    "env": {
+      "NODE_VERSION": "18"
+    }
+  },
+  "formation": {
+    "worker": {
+      "quantity": 1
+    }
+  }
+}

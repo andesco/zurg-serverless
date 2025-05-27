@@ -1,0 +1,32 @@
+name = "zurg-serverless"
+main = "src/worker.ts"
+compatibility_date = "2024-12-01"
+compatibility_flags = ["nodejs_compat"]
+
+[env.production]
+name = "zurg-serverless"
+
+[env.staging]
+name = "zurg-serverless-staging"
+
+# KV Namespace for caching torrents and STRM codes
+# Users need to create their own KV namespace and update these IDs
+# Run: wrangler kv:namespace create "KV"
+# Run: wrangler kv:namespace create "KV" --preview
+[[kv_namespaces]]
+binding = "KV"
+preview_id = "YOUR_PREVIEW_KV_NAMESPACE_ID"
+id = "YOUR_KV_NAMESPACE_ID"
+
+# Environment variables (non-sensitive)
+[vars]
+BASE_URL = ""  # Will be auto-detected from request if empty
+REFRESH_INTERVAL_SECONDS = "15"
+API_TIMEOUT_SECONDS = "30"
+TORRENTS_PAGE_SIZE = "1000"
+HIDE_BROKEN_TORRENTS = "true"
+
+# Secrets (set via: wrangler secret put SECRET_NAME)
+# RD_TOKEN = "your-real-debrid-token"
+# RD_UNRESTRICT_IP = "your-dedicated-ip-address"  # Optional but recommended
+# STRM_TOKEN = "optional-strm-protection-token"   # Optional
