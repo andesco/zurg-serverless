@@ -15,7 +15,7 @@ RD_UNRESTRICT_IP = ""  #optional
 STRM_TOKEN = "" #optional
 
 # KV Namespace for caching torrents and STRM codes
-# This will be automatically provisioned by "Deploy to Cloudflare" button
+# Will be automatically provisioned by "Deploy to Cloudflare" button
 [[kv_namespaces]]
 binding = "KV"
 id = ""

@@ -6,8 +6,8 @@
   "scripts": {
     "dev": "node scripts/wrangler-wrapper.js dev",
     "dev-main": "wrangler dev",
-    "deploy": "node scripts/wrangler-wrapper.js deploy",
-    "deploy-main": "wrangler deploy",
+    "deploy": "wrangler deploy",
+    "deploy-local": "node scripts/wrangler-wrapper.js deploy",
     "test": "wrangler dev --local",
     "types": "wrangler types",
     "setup-kv": "node scripts/smart-kv-setup.js",
