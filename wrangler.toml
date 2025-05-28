@@ -15,10 +15,10 @@ RD_UNRESTRICT_IP = ""  #optional
 STRM_TOKEN = "" #optional
 
 # KV Namespace for caching torrents and STRM codes
-# Run 'npm run setup-kv' after deployment to automatically create and configure KV
+# This will be automatically provisioned by "Deploy to Cloudflare" button
 [[kv_namespaces]]
 binding = "KV"
-id = ""         # Will be populated by setup script
-preview_id = "" # Will be populated by setup script
+id = ""
+preview_id = ""
 
 # secrets can be set via: wrangler secret put SECRET_NAME

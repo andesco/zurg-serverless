@@ -18,18 +18,18 @@ echo "📦 Creating KV namespaces..."
 
 # Create production KV namespace
 echo "Creating production KV namespace..."
-PROD_OUTPUT=$(wrangler kv:namespace create "KV" 2>&1)
+PROD_OUTPUT=$(wrangler kv namespace create "KV" 2>&1)
 PROD_ID=$(echo "$PROD_OUTPUT" | grep -o 'id = "[^"]*"' | cut -d'"' -f2)
 
 # Create preview KV namespace  
 echo "Creating preview KV namespace..."
-PREVIEW_OUTPUT=$(wrangler kv:namespace create "KV" --preview 2>&1)
+PREVIEW_OUTPUT=$(wrangler kv namespace create "KV" --preview 2>&1)
 PREVIEW_ID=$(echo "$PREVIEW_OUTPUT" | grep -o 'preview_id = "[^"]*"' | cut -d'"' -f2)
 
 if [ -z "$PROD_ID" ] || [ -z "$PREVIEW_ID" ]; then
     echo "❌ Failed to create KV namespaces. Please run manually:"
-    echo "   wrangler kv:namespace create \"KV\""
-    echo "   wrangler kv:namespace create \"KV\" --preview"
+    echo "   wrangler kv namespace create \"KV\""
+    echo "   wrangler kv namespace create \"KV\" --preview"
     exit 1
 fi
 

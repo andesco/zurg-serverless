@@ -47,7 +47,8 @@ export class STRMCacheManager {
         const entry: STRMCacheEntry = JSON.parse(cachedEntry);
         
         if (Date.now() < entry.expiresAt) {
-          return strmCode;        } else {
+          return strmCode;
+        } else {
           await this.env.KV.delete(`strm_cache:${strmCode}`);
           await this.env.KV.delete(cacheKey);
         }

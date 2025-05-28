@@ -1,6 +1,6 @@
 {
   "name": "Zurg Serverless",
-  "description": "Serverless Real-Debrid WebDAV server for Infuse with STRM files. After deployment, run 'npm run setup' for automated KV configuration.",
+  "description": "Serverless Real-Debrid WebDAV server for Infuse with STRM files. KV namespaces are automatically provisioned.",
   "repository": "https://github.com/andesco/zurg-serverless",
   "logo": "https://real-debrid.com/favicon.ico",
   "success_url": "/",

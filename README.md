@@ -28,56 +28,69 @@ A modern, serverless Real-Debrid WebDAV server with beautiful HTML browser and o
 [![Deploy to Cloudflare Workers](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/andesco/zurg-serverless)
 
 ### One-Click Setup:
+### One-Click Setup:
 1. **Click the deploy button** above
 2. **Connect your GitHub account** and Cloudflare account
-3. **Deploy** - Creates the Worker automatically
-4. **Complete setup** - One simple command:
-
-#### 🎯 Automated Setup (Recommended)
-```bash
-# One command to set up everything:
-npm run setup
-```
-This will:
-- ✅ Create KV namespaces automatically
-- ✅ Update wrangler.toml with correct IDs
-- ✅ Guide you through the process
-
-#### 🔐 Set Your Environment Variables
-After setup, configure your tokens in the Cloudflare dashboard:
-1. Go to **Workers & Pages** → **Your Worker** → **Settings** → **Variables**
-2. Fill in the pre-defined variables:
+3. **Deploy** - Automatically creates the Worker and KV namespaces!
+4. **Set your tokens** in Cloudflare dashboard (Workers & Pages → Your Worker → Settings → Variables):
    - `RD_TOKEN` - Your Real-Debrid API token (required)
    - `RD_UNRESTRICT_IP` - Your dedicated IP (recommended)
    - Other optional settings as needed
 
-#### 🚀 Deploy
+**Your WebDAV server is now live with full caching functionality!** 🎉
+
+---
+
+## 🛠️ **Local Development Setup**
+
+For local development and manual deployment:
+
 ```bash
-npm run deploy
+# 1. Clone the repository
+git clone https://github.com/your-username/zurg-serverless
+cd zurg-serverless
+
+# 2. Install dependencies
+npm install
+
+# 3. Set up local environment
+npm run setup-dev
+# Edit .dev.vars with your RD_TOKEN
+
+# 4. Create local KV namespaces
+npm run setup-kv
+# This creates wrangler.local.toml (gitignored)
+
+# 5. Start development
+npm run dev
 ```
 
-**Done!** Your WebDAV server is live at `https://your-worker.workers.dev/`
+### 🔐 **Why Two Config Files?**
+
+| File | Purpose | Contains | Git Status |
+|------|---------|----------|------------|
+| `wrangler.toml` | Deploy button & public repo | Empty KV IDs | ✅ Committed |
+| `wrangler.local.toml` | Local development | Your real KV IDs | 🚫 Gitignored |
+
+This prevents your account-specific KV namespace IDs from polluting the public repository!
 
 ---
 
 <details>
-<summary>🔧 Manual Setup (Alternative)</summary>
-
-If you prefer manual setup:
+<summary>🔧 Manual Deployment Commands</summary>
 
 ```bash
-# Create KV namespace for caching
-wrangler kv:namespace create "KV"
-wrangler kv:namespace create "KV" --preview
+# Check deployment readiness
+npm run check-deploy
 
-# Update wrangler.toml with the returned IDs
-# Set secrets via CLI
-wrangler secret put RD_TOKEN
-wrangler secret put RD_UNRESTRICT_IP  # optional but recommended
+# Deploy to production
+npm run deploy
 
-# Deploy
-wrangler deploy
+# Development server
+npm run dev
 ```
+
+</details>
 
 </details>
 
@@ -128,8 +141,8 @@ npm install
 2. **Create KV namespace**:
 ```bash
 # Create KV namespace for caching
-wrangler kv:namespace create "KV"
-wrangler kv:namespace create "KV" --preview
+wrangler kv namespace create "KV"
+wrangler kv namespace create "KV" --preview
 
 # Update wrangler.toml with the returned namespace IDs
 # Replace YOUR_KV_NAMESPACE_ID and YOUR_PREVIEW_KV_NAMESPACE_ID with actual values
@@ -265,11 +278,11 @@ src/
 #### "KV namespace not found"
 ```bash
 # Check your KV namespace exists:
-wrangler kv:namespace list
+wrangler kv namespace list
 
 # If missing, create it:
-wrangler kv:namespace create "KV"
-wrangler kv:namespace create "KV" --preview
+wrangler kv namespace create "KV"
+wrangler kv namespace create "KV" --preview
 
 # Update wrangler.toml with the returned IDs
 ```

@@ -4,8 +4,12 @@ const { execSync } = require('child_process');
 const fs = require('fs');
 const path = require('path');
 
-console.log('🎬 Zurg Serverless - KV Namespace Setup');
-console.log('=====================================\n');
+console.log('🎬 Zurg Serverless - Smart KV Setup');
+console.log('===================================\n');
+
+const wranglerPath = path.join(process.cwd(), 'wrangler.toml');
+const backupPath = path.join(process.cwd(), 'wrangler.toml.backup');
+const localConfigPath = path.join(process.cwd(), 'wrangler.local.toml');
 
 // Check if wrangler is available
 try {
@@ -13,7 +17,6 @@ try {
 } catch (error) {
   console.error('❌ Wrangler CLI not found. Please install it first:');
   console.error('   npm install -g wrangler');
-  console.error('   OR install locally: npm install wrangler --save-dev');
   process.exit(1);
 }
 
@@ -26,9 +29,16 @@ try {
   process.exit(1);
 }
 
-console.log('📦 Creating KV namespaces...');
-
 try {
+  console.log('🔄 Temporarily moving wrangler.toml to avoid config conflicts...');
+  
+  // Backup the original config
+  if (fs.existsSync(wranglerPath)) {
+    fs.renameSync(wranglerPath, backupPath);
+  }
+
+  console.log('📦 Creating KV namespaces...');
+
   // Create production KV namespace
   console.log('Creating production KV namespace...');
   const prodOutput = execSync('wrangler kv namespace create "KV"', { encoding: 'utf8' });
@@ -48,37 +58,42 @@ try {
   console.log(`✅ Production KV namespace created: ${prodId}`);
   console.log(`✅ Preview KV namespace created: ${previewId}`);
 
-  // Create local wrangler config (not committed to git)
-  const wranglerPath = path.join(process.cwd(), 'wrangler.toml');
-  const localWranglerPath = path.join(process.cwd(), 'wrangler.local.toml');
-  
-  if (!fs.existsSync(wranglerPath)) {
-    console.error('❌ wrangler.toml not found in current directory');
-    process.exit(1);
+  // Restore the original config
+  console.log('🔄 Restoring original wrangler.toml...');
+  if (fs.existsSync(backupPath)) {
+    fs.renameSync(backupPath, wranglerPath);
   }
 
-  let wranglerContent = fs.readFileSync(wranglerPath, 'utf8');
+  // Create local config with real IDs
+  console.log('📝 Creating wrangler.local.toml with real KV IDs...');
   
-  // Replace the empty id and preview_id values with actual IDs
-  const kvPattern = /(binding = "KV"\s*\n)id = ""\s*\npreview_id = ""/;
-  wranglerContent = wranglerContent.replace(
-    kvPattern,
-    `$1id = "${prodId}"\npreview_id = "${previewId}"`
-  );
+  const localConfig = `name = "zurg-serverless"
+main = "src/worker.ts"
+compatibility_date = "2024-12-01"
+compatibility_flags = ["nodejs_compat"]
 
-  // Verify the replacement worked
-  if (!wranglerContent.includes(prodId)) {
-    console.error('❌ Failed to update configuration with KV namespace IDs');
-    console.error('Please manually create wrangler.local.toml with:');
-    console.error(`id = "${prodId}"`);
-    console.error(`preview_id = "${previewId}"`);
-    process.exit(1);
-  }
+# Environment variables (non-sensitive)
+[vars]
+BASE_URL = ""
+REFRESH_INTERVAL_SECONDS = "15"
+API_TIMEOUT_SECONDS = "30"
+TORRENTS_PAGE_SIZE = "1000"
+HIDE_BROKEN_TORRENTS = "true"
+RD_TOKEN = ""
+RD_UNRESTRICT_IP = ""
+STRM_TOKEN = ""
 
-  // Write to LOCAL config file (gitignored)
-  fs.writeFileSync(localWranglerPath, wranglerContent);
-  console.log('✅ wrangler.local.toml created with KV namespace IDs');
-  console.log('📝 Note: wrangler.toml remains unchanged (ready for Deploy button)');
+# KV Namespace with real IDs
+[[kv_namespaces]]
+binding = "KV"
+id = "${prodId}"
+preview_id = "${previewId}"
+
+# Secrets are set via: wrangler secret put SECRET_NAME
+`;
+
+  fs.writeFileSync(localConfigPath, localConfig);
+  console.log('✅ wrangler.local.toml created with real KV namespace IDs');
 
   console.log('\n🎉 KV setup complete!');
   console.log('\n📋 What was created:');
@@ -89,13 +104,20 @@ try {
   console.log('\n🚀 Next steps:');
   console.log('1. Set environment variables: npm run setup-dev');
   console.log('2. Start development: npm run dev');
-  console.log('3. Deploy manually: npm run deploy');
 
 } catch (error) {
+  // Restore the original config if something went wrong
+  if (fs.existsSync(backupPath)) {
+    fs.renameSync(backupPath, wranglerPath);
+    console.log('🔄 Restored original wrangler.toml');
+  }
+  
   console.error('❌ Error setting up KV namespaces:', error.message);
   console.error('\n🔧 Manual setup fallback:');
-  console.error('   wrangler kv namespace create "KV"');
-  console.error('   wrangler kv namespace create "KV" --preview');
-  console.error('   Then manually update the IDs in wrangler.local.toml');
+  console.error('1. Temporarily rename wrangler.toml');
+  console.error('2. Run: wrangler kv namespace create "KV"');
+  console.error('3. Run: wrangler kv namespace create "KV" --preview');
+  console.error('4. Restore wrangler.toml');
+  console.error('5. Create wrangler.local.toml with the IDs');
   process.exit(1);
 }

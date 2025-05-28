@@ -14,6 +14,10 @@ dist/
 .env.development.local
 .env.test.local
 .env.production.local
+.dev.vars
+
+# Local wrangler config (contains account-specific KV IDs)
+wrangler.local.toml
 
 # Logs
 logs
