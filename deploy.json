@@ -1,7 +1,7 @@
 {
   "name": "Zurg Serverless",
-  "description": "Serverless Real-Debrid WebDAV server for Infuse with STRM files",
-  "repository": "https://github.com/your-username/zurg-serverless",
+  "description": "Serverless Real-Debrid WebDAV server for Infuse with STRM files. After deployment, run 'npm run setup' for automated KV configuration.",
+  "repository": "https://github.com/andesco/zurg-serverless",
   "logo": "https://real-debrid.com/favicon.ico",
   "success_url": "/",
   "env": {
@@ -10,11 +10,31 @@
       "required": true
     },
     "RD_UNRESTRICT_IP": {
-      "description": "Fixed IP address for unrestrict calls (prevents account bans)",
+      "description": "Fixed IP address for unrestrict calls (prevents account bans from IP conflicts)",
       "required": false
     },
     "STRM_TOKEN": {
       "description": "Optional token for STRM file protection",
+      "required": false
+    },
+    "BASE_URL": {
+      "description": "Override base URL (leave empty for auto-detection)",
+      "required": false
+    },
+    "REFRESH_INTERVAL_SECONDS": {
+      "description": "Torrent refresh interval in seconds (default: 15)",
+      "required": false
+    },
+    "API_TIMEOUT_SECONDS": {
+      "description": "API timeout in seconds (default: 30)",
+      "required": false
+    },
+    "TORRENTS_PAGE_SIZE": {
+      "description": "Torrents per API page (default: 1000)",
+      "required": false
+    },
+    "HIDE_BROKEN_TORRENTS": {
+      "description": "Hide broken torrents in listings (default: true)",
       "required": false
     }
   },

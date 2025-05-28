@@ -7,7 +7,9 @@
     "dev": "wrangler dev",
     "deploy": "wrangler deploy",
     "test": "wrangler dev --local",
-    "types": "wrangler types"
+    "types": "wrangler types",
+    "setup-kv": "node scripts/setup-kv.js",
+    "setup": "npm run setup-kv && echo '\n✅ Setup complete! Your KV namespaces are ready.'"
   },
   "keywords": [
     "real-debrid",
