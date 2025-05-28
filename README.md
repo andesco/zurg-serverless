@@ -25,11 +25,11 @@ A modern, serverless Real-Debrid WebDAV server with beautiful HTML browser and o
 
 ## 🚀 Quick Deploy
 
-[![Deploy to Cloudflare Workers](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/debridmediamanager/zurg-serverless)
+[![Deploy to Cloudflare Workers](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/andesco/zurg-serverless)
 
 ### One-Click Setup:
 1. **Click the deploy button** above
-2. **Connect your GitHub account** and Cloudflare account  
+2. **Connect your GitHub account** and Cloudflare account
 3. **Deploy** - Creates the Worker automatically
 4. **Complete setup** - One simple command:
 
@@ -314,7 +314,7 @@ wrangler secret put RD_UNRESTRICT_IP
 
 ### 📱 **Infuse Pro (iOS/tvOS)**
 1. Add WebDAV source
-2. Server: `your-worker.workers.dev`  
+2. Server: `your-worker.workers.dev`
 3. Path: `/infuse/`
 4. Save and browse your library!
 
@@ -325,5 +325,5 @@ wrangler secret put RD_UNRESTRICT_IP
 
 ### 📂 **File Explorers**
 - **Windows**: Map network drive to WebDAV URL
-- **macOS**: Connect to Server in Finder  
+- **macOS**: Connect to Server in Finder
 - **Linux**: Mount via `davfs2` or file manager
