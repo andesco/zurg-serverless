@@ -1,4 +1,37 @@
-import { RealDebridTorrentInfo, Torrent, TorrentFile } from './types';
+import { RealDebridTorrentInfo, RealDebridUser, RealDebridTrafficInfo, Torrent, TorrentFile } from './types';
+
+export function calculateTotalTrafficServed(traffic: RealDebridTrafficInfo): number {
+  return Object.values(traffic).reduce((total, hoster) => {
+    const bytes = hoster.bytes;
+    // Handle potential undefined, null, or NaN values
+    if (typeof bytes === 'number' && !isNaN(bytes) && bytes >= 0) {
+      return total + bytes;
+    }
+    return total;
+  }, 0);
+}
+
+export function formatTrafficServed(trafficBytes: number): string {
+  // Handle edge cases
+  if (!trafficBytes || isNaN(trafficBytes) || trafficBytes < 0) {
+    return '0.0';
+  }
+  
+  const trafficGB = trafficBytes / (1024 * 1024 * 1024);
+  return trafficGB.toFixed(1);
+}
+
+export function formatPoints(points: number): string {
+  return points.toLocaleString();
+}
+
+export function calculateDaysRemaining(expirationDate: string): number {
+  const expiration = new Date(expirationDate);
+  const now = new Date();
+  const diffTime = expiration.getTime() - now.getTime();
+  const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+  return Math.max(0, diffDays); // Don't show negative days
+}
 
 export function convertToTorrent(info: RealDebridTorrentInfo): Torrent | null {
   if (!info.files || info.files.length === 0) {

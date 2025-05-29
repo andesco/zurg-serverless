@@ -3,22 +3,20 @@ main = "src/worker.ts"
 compatibility_date = "2024-12-01"
 compatibility_flags = ["nodejs_compat"]
 
-# Environment variables (non-sensitive)
+# Environment variables - edit the values below
 [vars]
-BASE_URL = ""  # Will be auto-detected from request if empty
+RD_TOKEN = "your_real_debrid_token_here"
+BASE_URL = ""
+STRM_TOKEN = ""
+USERNAME = ""
+PASSWORD = ""
 REFRESH_INTERVAL_SECONDS = "15"
 API_TIMEOUT_SECONDS = "30"
 TORRENTS_PAGE_SIZE = "1000"
 HIDE_BROKEN_TORRENTS = "true"
-RD_TOKEN = ""
-RD_UNRESTRICT_IP = ""  #optional
-STRM_TOKEN = "" #optional
 
-# KV Namespace for caching torrents and STRM codes
-# Will be automatically provisioned by "Deploy to Cloudflare" button
-[[kv_namespaces]]
-binding = "KV"
-id = ""
-preview_id = ""
-
-# secrets can be set via: wrangler secret put SECRET_NAME
+# D1 Database - Wrangler will create this automatically on first deploy
+[[d1_databases]]
+binding = "DB"
+database_name = "zurg-serverless-db"
+database_id = ""

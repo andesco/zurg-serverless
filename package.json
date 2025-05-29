@@ -4,16 +4,13 @@
   "description": "Serverless Real-Debrid WebDAV server for Infuse with STRM files",
   "main": "src/worker.ts",
   "scripts": {
-    "dev": "node scripts/wrangler-wrapper.js dev",
-    "dev-main": "wrangler dev",
+    "dev": "wrangler dev",
+    "dev-direct": "wrangler dev",
     "deploy": "wrangler deploy",
-    "deploy-local": "node scripts/wrangler-wrapper.js deploy",
+    "setup": "node scripts/setup.js",
+    "setup-d1": "node scripts/setup-d1.js",
     "test": "wrangler dev --local",
-    "types": "wrangler types",
-    "setup-kv": "node scripts/smart-kv-setup.js",
-    "setup": "npm run setup-kv",
-    "setup-dev": "cp .env.example .dev.vars && echo '✅ Created .dev.vars - Edit with your actual values'",
-    "check-deploy": "node scripts/check-deploy.js"
+    "types": "wrangler types"
   },
   "keywords": [
     "real-debrid",
@@ -27,7 +24,6 @@
   "license": "MIT",
   "devDependencies": {
     "@cloudflare/workers-types": "^4.20241022.0",
-    "typescript": "^5.3.0",
-    "wrangler": "^4.17.0"
+    "typescript": "^5.3.0"
   }
 }

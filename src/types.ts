@@ -1,13 +1,14 @@
 export interface Env {
-  KV: KVNamespace;
+  DB: D1Database;
   RD_TOKEN: string;
-  RD_UNRESTRICT_IP?: string;
   STRM_TOKEN?: string;
   BASE_URL?: string;
   REFRESH_INTERVAL_SECONDS?: string;
   API_TIMEOUT_SECONDS?: string;
   TORRENTS_PAGE_SIZE?: string;
   HIDE_BROKEN_TORRENTS?: string;
+  USERNAME?: string;
+  PASSWORD?: string;
 }
 
 export interface RealDebridTorrent {
@@ -49,6 +50,30 @@ export interface RealDebridFile {
   path: string;
   bytes: number;
   selected: number;
+}
+
+export interface RealDebridUser {
+  id: number;
+  username: string;
+  email: string;
+  points: number;
+  locale: string;
+  avatar: string;
+  type: string;
+  premium: number;
+  expiration: string;
+}
+
+export interface RealDebridTrafficInfo {
+  [hoster: string]: {
+    left: number;
+    bytes: number;
+    links: number;
+    limit: number;
+    type: string; // "links" or "gigabytes"
+    extra: number;
+    reset: string; // "daily" etc
+  };
 }
 
 export interface UnrestrictResponse {

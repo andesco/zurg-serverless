@@ -10,393 +10,772 @@ export class HTMLBrowser {
     this.baseURL = env.BASE_URL || new URL(request.url).origin;
   }
 
-  generateRootPage(directories: string[]): string {
-    const directoryCards = directories
-      .filter(d => !d.startsWith('int__'))
-      .map(dir => `
-        <div class="group relative overflow-hidden rounded-lg border bg-background p-2 hover:bg-accent hover:text-accent-foreground transition-colors">
-          <a href="/html/${encodeURIComponent(dir)}/" class="absolute inset-0 z-10">
-            <span class="sr-only">Browse ${this.escapeHtml(dir)}</span>
-          </a>
-          <div class="flex h-[180px] flex-col justify-between rounded-md p-6">
-            <div class="space-y-2">
-              <div class="inline-flex items-center rounded-lg bg-muted px-3 py-1 text-xs font-medium">
-                📁 Directory
-              </div>
-              <h3 class="font-semibold">${this.escapeHtml(dir)}</h3>
-              <p class="text-sm text-muted-foreground">
-                Browse torrents and media files
-              </p>
+  private getBaseStyles(): string {
+    return `
+      <script src="https://cdn.tailwindcss.com"></script>
+      <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/lucide/0.263.1/umd/lucide.min.css">
+      <style>
+        /* Custom CSS Variables */
+        :root {
+          --background: 250 250 250;
+          --foreground: 9 9 11;
+          --card: 255 255 255;
+          --card-foreground: 9 9 11;
+          --popover: 255 255 255;
+          --popover-foreground: 9 9 11;
+          --primary: 9 9 11;
+          --primary-foreground: 250 250 250;
+          --secondary: 244 244 245;
+          --secondary-foreground: 9 9 11;
+          --muted: 244 244 245;
+          --muted-foreground: 113 113 122;
+          --accent: 244 244 245;
+          --accent-foreground: 9 9 11;
+          --destructive: 239 68 68;
+          --destructive-foreground: 250 250 250;
+          --border: 228 228 231;
+          --input: 228 228 231;
+          --ring: 9 9 11;
+        }
+
+        @media (prefers-color-scheme: dark) {
+          :root {
+            --background: 9 9 11;
+            --foreground: 250 250 250;
+            --card: 9 9 11;
+            --card-foreground: 250 250 250;
+            --popover: 9 9 11;
+            --popover-foreground: 250 250 250;
+            --primary: 250 250 250;
+            --primary-foreground: 9 9 11;
+            --secondary: 39 39 42;
+            --secondary-foreground: 250 250 250;
+            --muted: 39 39 42;
+            --muted-foreground: 161 161 170;
+            --accent: 39 39 42;
+            --accent-foreground: 250 250 250;
+            --destructive: 239 68 68;
+            --destructive-foreground: 250 250 250;
+            --border: 39 39 42;
+            --input: 39 39 42;
+            --ring: 212 212 216;
+          }
+        }
+
+        * {
+          border-color: rgb(var(--border));
+        }
+
+        body {
+          background-color: rgb(var(--background));
+          color: rgb(var(--foreground));
+        }
+
+        /* Component styles */
+        .bg-background { background-color: rgb(var(--background)); }
+        .text-foreground { color: rgb(var(--foreground)); }
+        .bg-card { background-color: rgb(var(--card)); }
+        .text-card-foreground { color: rgb(var(--card-foreground)); }
+        .bg-primary { background-color: rgb(var(--primary)); }
+        .text-primary-foreground { color: rgb(var(--primary-foreground)); }
+        .bg-secondary { background-color: rgb(var(--secondary)); }
+        .text-secondary-foreground { color: rgb(var(--secondary-foreground)); }
+        .bg-muted { background-color: rgb(var(--muted)); }
+        .text-muted-foreground { color: rgb(var(--muted-foreground)); }
+        .bg-accent { background-color: rgb(var(--accent)); }
+        .text-accent-foreground { color: rgb(var(--accent-foreground)); }
+        .border-border { border-color: rgb(var(--border)); }
+
+        /* Button styles */
+        .btn {
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          border-radius: 0.375rem;
+          font-size: 0.875rem;
+          font-weight: 500;
+          transition: all 0.2s;
+          border: 1px solid transparent;
+          cursor: pointer;
+          text-decoration: none;
+        }
+
+        .btn-sm {
+          height: 2rem;
+          padding: 0 0.75rem;
+        }
+
+        .btn-primary {
+          background-color: rgb(var(--primary));
+          color: rgb(var(--primary-foreground));
+        }
+
+        .btn-primary:hover {
+          background-color: rgb(var(--primary) / 0.9);
+        }
+
+        .btn-outline {
+          border: 1px solid rgb(var(--border));
+          background-color: transparent;
+          color: rgb(var(--foreground));
+        }
+
+        .btn-outline:hover {
+          background-color: rgb(var(--accent));
+          color: rgb(var(--accent-foreground));
+        }
+
+        .btn-ghost {
+          background-color: transparent;
+          color: rgb(var(--foreground));
+        }
+
+        .btn-ghost:hover {
+          background-color: rgb(var(--accent));
+          color: rgb(var(--accent-foreground));
+        }
+
+        /* Input styles */
+        .input {
+          display: flex;
+          height: 2.5rem;
+          width: 100%;
+          border-radius: 0.375rem;
+          border: 1px solid rgb(var(--input));
+          background-color: rgb(var(--background));
+          padding: 0.5rem 0.75rem;
+          font-size: 0.875rem;
+          transition: all 0.2s;
+        }
+
+        .input:focus {
+          outline: none;
+          ring: 2px;
+          ring-color: rgb(var(--ring));
+        }
+
+        /* Mobile sidebar styles */
+        .sidebar-backdrop {
+          position: fixed;
+          top: 0;
+          left: 0;
+          right: 0;
+          bottom: 0;
+          background-color: rgba(0, 0, 0, 0.5);
+          z-index: 40;
+          opacity: 0;
+          visibility: hidden;
+          transition: opacity 0.3s ease, visibility 0.3s ease;
+        }
+
+        .sidebar-backdrop.show {
+          opacity: 1;
+          visibility: visible;
+        }
+
+        .mobile-sidebar {
+          position: fixed;
+          top: 0;
+          left: 0;
+          height: 100vh;
+          width: 16rem;
+          background-color: rgb(var(--background));
+          border-right: 1px solid rgb(var(--border));
+          z-index: 50;
+          transform: translateX(-100%);
+          transition: transform 0.3s ease;
+        }
+
+        .mobile-sidebar.show {
+          transform: translateX(0);
+        }
+
+        @media (min-width: 768px) {
+          .mobile-sidebar {
+            position: static;
+            transform: translateX(0);
+            z-index: auto;
+          }
+          
+          .sidebar-backdrop {
+            display: none;
+          }
+        }
+
+        /* Card and other styles */
+        .card {
+          border-radius: 0.5rem;
+          border: 1px solid rgb(var(--border));
+          background-color: rgb(var(--card));
+          color: rgb(var(--card-foreground));
+          box-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1);
+        }
+
+        .card:hover {
+          box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+        }
+
+        .badge {
+          display: inline-flex;
+          align-items: center;
+          border-radius: 9999px;
+          padding: 0.125rem 0.625rem;
+          font-size: 0.75rem;
+          font-weight: 600;
+          transition: all 0.2s;
+        }
+
+        .badge-secondary {
+          background-color: rgb(var(--secondary));
+          color: rgb(var(--secondary-foreground));
+        }
+
+        .badge-outline {
+          color: rgb(var(--foreground));
+          border: 1px solid rgb(var(--border));
+        }
+
+        .separator {
+          height: 1px;
+          width: 100%;
+          background-color: rgb(var(--border));
+        }
+
+        .truncate {
+          overflow: hidden;
+          text-overflow: ellipsis;
+          white-space: nowrap;
+        }
+
+        .truncate-left {
+          overflow: hidden;
+          white-space: nowrap;
+          direction: rtl;
+          text-align: left;
+        }
+
+        .truncate-left > span {
+          direction: ltr;
+        }
+
+        .icon {
+          width: 1rem;
+          height: 1rem;
+        }
+
+        .icon-lg {
+          width: 1.25rem;
+          height: 1.25rem;
+        }
+
+        .icon-xl {
+          width: 2rem;
+          height: 2rem;
+        }
+
+        ::-webkit-scrollbar {
+          width: 8px;
+          height: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+          background: rgb(var(--muted));
+        }
+
+        ::-webkit-scrollbar-thumb {
+          background: rgb(var(--muted-foreground));
+          border-radius: 4px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+          background: rgb(var(--foreground));
+        }
+
+        .lucide {
+          width: 1rem;
+          height: 1rem;
+          stroke-width: 2;
+        }
+      </style>
+      <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
+    `;
+  }
+
+  private getBaseScripts(): string {
+    return `
+      <script>
+        // Initialize Lucide icons
+        lucide.createIcons();
+
+        // Mobile sidebar functionality
+        function toggleSidebar() {
+          const sidebar = document.getElementById('mobile-sidebar');
+          const backdrop = document.getElementById('sidebar-backdrop');
+          
+          if (sidebar && backdrop) {
+            sidebar.classList.toggle('show');
+            backdrop.classList.toggle('show');
+          }
+        }
+
+        // Close sidebar when clicking on a link (mobile)
+        function closeSidebarOnNavigate() {
+          const sidebar = document.getElementById('mobile-sidebar');
+          const backdrop = document.getElementById('sidebar-backdrop');
+          
+          if (window.innerWidth < 768 && sidebar && backdrop) {
+            sidebar.classList.remove('show');
+            backdrop.classList.remove('show');
+          }
+        }
+
+        // View mode functionality
+        let currentViewMode = localStorage.getItem('viewMode') || 'list';
+
+        function setViewMode(mode) {
+          currentViewMode = mode;
+          localStorage.setItem('viewMode', mode);
+          
+          const gridView = document.getElementById('grid-view');
+          const listView = document.getElementById('list-view');
+          const gridBtn = document.getElementById('grid-btn');
+          const listBtn = document.getElementById('list-btn');
+          
+          if (mode === 'grid') {
+            if (gridView) gridView.classList.remove('hidden');
+            if (listView) listView.classList.add('hidden');
+            if (gridBtn) {
+              gridBtn.classList.remove('btn-ghost');
+              gridBtn.classList.add('btn-primary');
+            }
+            if (listBtn) {
+              listBtn.classList.remove('btn-primary');
+              listBtn.classList.add('btn-ghost');
+            }
+          } else {
+            if (gridView) gridView.classList.add('hidden');
+            if (listView) listView.classList.remove('hidden');
+            if (listBtn) {
+              listBtn.classList.remove('btn-ghost');
+              listBtn.classList.add('btn-primary');
+            }
+            if (gridBtn) {
+              gridBtn.classList.remove('btn-primary');
+              gridBtn.classList.add('btn-ghost');
+            }
+          }
+        }
+
+        // Search functionality
+        function handleSearch(event) {
+          const searchTerm = event.target.value.toLowerCase();
+          const items = document.querySelectorAll('[data-searchable]');
+          
+          items.forEach(item => {
+            const text = item.getAttribute('data-searchable').toLowerCase();
+            const parent = item.closest('.search-item');
+            if (parent) {
+              if (text.includes(searchTerm)) {
+                parent.style.display = '';
+              } else {
+                parent.style.display = 'none';
+              }
+            }
+          });
+        }
+
+        // Copy to clipboard
+        async function copyToClipboard(text, buttonId) {
+          try {
+            await navigator.clipboard.writeText(text);
+            const button = document.getElementById(buttonId);
+            if (button) {
+              const originalText = button.innerHTML;
+              button.innerHTML = '<i data-lucide="check" class="icon mr-2"></i>Copied!';
+              button.classList.add('btn-primary');
+              lucide.createIcons();
+              
+              setTimeout(() => {
+                button.innerHTML = originalText;
+                button.classList.remove('btn-primary');
+                lucide.createIcons();
+              }, 2000);
+            }
+          } catch (err) {
+            console.error('Failed to copy:', err);
+            alert('Failed to copy to clipboard');
+          }
+        }
+
+        // Close sidebar on resize if screen becomes large
+        window.addEventListener('resize', () => {
+          if (window.innerWidth >= 768) {
+            const sidebar = document.getElementById('mobile-sidebar');
+            const backdrop = document.getElementById('sidebar-backdrop');
+            
+            if (sidebar && backdrop) {
+              sidebar.classList.remove('show');
+              backdrop.classList.remove('show');
+            }
+          }
+        });
+
+        // Initialize on DOM load
+        document.addEventListener('DOMContentLoaded', () => {
+          setViewMode(currentViewMode);
+          lucide.createIcons();
+          
+          // Add click listener to all sidebar links to close on mobile
+          const sidebarLinks = document.querySelectorAll('#mobile-sidebar a');
+          sidebarLinks.forEach(link => {
+            link.addEventListener('click', closeSidebarOnNavigate);
+          });
+        });
+      </script>
+    `;
+  }
+
+  private generateSidebar(activePage: string): string {
+    const navItems = [
+      { href: '/', icon: 'home', label: 'Home', id: 'home' },
+      { href: '/html/', icon: 'film', label: 'HTML File Browser', id: 'html' },
+      { href: '/dav/', icon: 'server', label: 'WebDAV', id: 'webdav' },
+      { href: '/infuse/', icon: 'tv', label: 'WebDAV for Infuse', id: 'infuse' }
+    ];
+
+    return `
+      <!-- Mobile menu backdrop -->
+      <div id="sidebar-backdrop" class="sidebar-backdrop md:hidden" onclick="toggleSidebar()"></div>
+      
+      <!-- Sidebar -->
+      <div id="mobile-sidebar" class="mobile-sidebar md:relative md:w-64 bg-background border-r border-border">
+        <div class="flex h-full flex-col">
+          <!-- Sidebar Header -->
+          <div class="p-4 border-b border-border">
+            <div class="flex items-center justify-between">
+              <h2 class="text-lg font-semibold">Zurg Serverless</h2>
+              <!-- Close button for mobile -->
+              <button onclick="toggleSidebar()" class="md:hidden p-1 rounded-md hover:bg-accent">
+                <i data-lucide="x" class="icon"></i>
+              </button>
             </div>
-            <div class="flex items-center space-x-1 rounded-md bg-secondary text-secondary-foreground">
-              <div class="flex items-center space-x-1 text-xs">
-                <svg class="h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
-                </svg>
-                <span>Enter</span>
+          </div>
+          
+          <!-- Sidebar Content -->
+          <div class="flex-1 p-4">
+            <nav class="space-y-2">
+              ${navItems.map(item => `
+                <a href="${item.href}"
+                   class="flex items-center gap-3 rounded-lg px-3 py-2 text-muted-foreground transition-all hover:text-foreground hover:bg-accent ${
+                     activePage === item.id ? 'bg-accent text-accent-foreground' : ''
+                   }">
+                  <i data-lucide="${item.icon}" class="icon"></i>
+                  <span>${item.label}</span>
+                </a>
+              `).join('')}
+            </nav>
+          </div>
+          
+          <!-- Sidebar Footer -->
+          <div class="p-4 border-t border-border">
+            <div class="text-xs text-muted-foreground">Serverless v1.0</div>
+          </div>
+        </div>
+      </div>
+    `;
+  }
+
+  async generateRootPage(directories: string[]): Promise<string> {
+    const validDirectories = directories.filter(d => !d.startsWith('int__'));
+    
+    const directoryCards = validDirectories.map(dir => `
+      <div class="search-item">
+        <div class="card cursor-pointer transition-shadow hover:shadow-md"
+             data-searchable="${this.escapeHtml(dir)}"
+             onclick="window.location.href='/html/${encodeURIComponent(dir)}/'">
+          <div class="p-6">
+            <div class="flex items-center justify-between mb-4">
+              <div class="flex justify-center">
+                <i data-lucide="folder" class="icon-xl text-yellow-500"></i>
               </div>
+              <i data-lucide="chevron-right" class="icon text-muted-foreground"></i>
+            </div>
+            <div class="space-y-1">
+              <p class="font-medium text-sm truncate">${this.escapeHtml(dir)}</p>
+              <p class="text-xs text-muted-foreground">Media directory</p>
             </div>
           </div>
         </div>
-      `).join('');
+      </div>
+    `).join('');
 
     return `<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Zurg Serverless - Media Library</title>
-  <script src="https://cdn.tailwindcss.com"></script>
-  <script>
-    tailwind.config = {
-      theme: {
-        extend: {
-          colors: {
-            border: "hsl(var(--border))",
-            input: "hsl(var(--input))",
-            ring: "hsl(var(--ring))",
-            background: "hsl(var(--background))",
-            foreground: "hsl(var(--foreground))",
-            primary: {
-              DEFAULT: "hsl(var(--primary))",
-              foreground: "hsl(var(--primary-foreground))",
-            },
-            secondary: {
-              DEFAULT: "hsl(var(--secondary))",
-              foreground: "hsl(var(--secondary-foreground))",
-            },
-            muted: {
-              DEFAULT: "hsl(var(--muted))",
-              foreground: "hsl(var(--muted-foreground))",
-            },
-            accent: {
-              DEFAULT: "hsl(var(--accent))",
-              foreground: "hsl(var(--accent-foreground))",
-            },
-            destructive: {
-              DEFAULT: "hsl(var(--destructive))",
-              foreground: "hsl(var(--destructive-foreground))",
-            },
-            card: {
-              DEFAULT: "hsl(var(--card))",
-              foreground: "hsl(var(--card-foreground))",
-            },
-          },
-        }
-      }
-    }
-  </script>
-  <style>
-    :root {
-      --background: 0 0% 100%;
-      --foreground: 222.2 84% 4.9%;
-      --card: 0 0% 100%;
-      --card-foreground: 222.2 84% 4.9%;
-      --primary: 222.2 47.4% 11.2%;
-      --primary-foreground: 210 40% 98%;
-      --secondary: 210 40% 96%;
-      --secondary-foreground: 222.2 84% 4.9%;
-      --muted: 210 40% 96%;
-      --muted-foreground: 215.4 16.3% 46.9%;
-      --accent: 210 40% 96%;
-      --accent-foreground: 222.2 84% 4.9%;
-      --destructive: 0 84.2% 60.2%;
-      --destructive-foreground: 210 40% 98%;
-      --border: 214.3 31.8% 91.4%;
-      --input: 214.3 31.8% 91.4%;
-      --ring: 222.2 84% 4.9%;
-    }
-    
-    @media (prefers-color-scheme: dark) {
-      :root {
-        --background: 222.2 84% 4.9%;
-        --foreground: 210 40% 98%;
-        --card: 222.2 84% 4.9%;
-        --card-foreground: 210 40% 98%;
-        --primary: 210 40% 98%;
-        --primary-foreground: 222.2 47.4% 11.2%;
-        --secondary: 217.2 32.6% 17.5%;
-        --secondary-foreground: 210 40% 98%;
-        --muted: 217.2 32.6% 17.5%;
-        --muted-foreground: 215 20.2% 65.1%;
-        --accent: 217.2 32.6% 17.5%;
-        --accent-foreground: 210 40% 98%;
-        --destructive: 0 62.8% 30.6%;
-        --destructive-foreground: 210 40% 98%;
-        --border: 217.2 32.6% 17.5%;
-        --input: 217.2 32.6% 17.5%;
-        --ring: 212.7 26.8% 83.9%;
-      }
-    }
-  </style>
+  <title>Media Library - Zurg Serverless</title>
+  ${this.getBaseStyles()}
 </head>
-<body class="min-h-screen bg-background font-sans antialiased">
-  <div class="relative flex min-h-screen flex-col">
-    <header class="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-      <div class="container flex h-14 items-center">
-        <div class="mr-4 hidden md:flex">
-          <a class="mr-6 flex items-center space-x-2" href="/html/">
-            <span class="hidden font-bold sm:inline-block">🎬 Zurg Serverless</span>
-          </a>
-          <nav class="flex items-center space-x-6 text-sm font-medium">
-            <a class="transition-colors hover:text-foreground/80 text-foreground" href="/html/">Browse</a>
-            <a class="transition-colors hover:text-foreground/80 text-muted-foreground" href="/dav/">WebDAV</a>
-            <a class="transition-colors hover:text-foreground/80 text-muted-foreground" href="/infuse/">Infuse</a>
-          </nav>
-        </div>
-        <button class="inline-flex items-center justify-center rounded-md font-medium transition-colors focus-visible:outline-none focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 hover:text-accent-foreground h-9 py-2 mr-2 px-0 text-base hover:bg-transparent focus-visible:bg-transparent focus-visible:ring-0 focus-visible:ring-offset-0 md:hidden">
-          <svg class="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/>
-          </svg>
-          <span class="sr-only">Toggle Menu</span>
+<body class="min-h-screen bg-gray-50">
+  <div class="flex h-screen w-full">
+    ${this.generateSidebar('html')}
+    
+    <!-- Main Content -->
+    <div class="flex-1 min-w-0 overflow-auto bg-gray-50">
+      <!-- Mobile Header with Hamburger -->
+      <div class="md:hidden bg-white border-b px-4 py-3 flex items-center justify-between">
+        <button onclick="toggleSidebar()" class="p-2 rounded-md hover:bg-gray-100">
+          <i data-lucide="menu" class="icon"></i>
         </button>
-        <div class="flex flex-1 items-center justify-between space-x-2 md:justify-end">
-          <div class="w-full flex-1 md:w-auto md:flex-none">
-          </div>
-        </div>
+        <h1 class="text-lg font-semibold">Media Library</h1>
+        <div class="w-10"></div> <!-- Spacer for centering -->
       </div>
-    </header>
-    <main class="flex-1">
-      <div class="container py-6">
-        <div class="flex flex-col space-y-8">
-          <div class="flex flex-col space-y-2">
-            <h1 class="text-3xl font-bold tracking-tight">Media Library</h1>
-            <p class="text-muted-foreground">
-              Browse your Real-Debrid collection and generate STRM files for streaming
-            </p>
-          </div>
-          
-          <div class="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-            ${directoryCards || '<div class="col-span-full text-center text-muted-foreground">No directories found</div>'}
-          </div>
-          
-          <div class="rounded-lg border bg-card text-card-foreground shadow-sm">
-            <div class="flex flex-col space-y-1.5 p-6">
-              <h3 class="text-2xl font-semibold leading-none tracking-tight">Quick Access</h3>
-              <p class="text-sm text-muted-foreground">Direct links to WebDAV endpoints</p>
+      
+      <!-- Header -->
+      <div class="bg-white border-b">
+        <div class="px-4 py-4">
+          <div class="flex items-center justify-between">
+            <div>
+              <h1 class="text-2xl font-bold text-gray-900 hidden md:block">Media Library</h1>
+              <p class="text-gray-600">${validDirectories.length} directories</p>
             </div>
-            <div class="p-6 pt-0">
-              <div class="grid gap-2">
-                <a href="/dav/" class="inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:opacity-50 disabled:pointer-events-none ring-offset-background border border-input hover:bg-accent hover:text-accent-foreground h-10 py-2 px-4">
-                  <svg class="mr-2 h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2H5a2 2 0 00-2-2z"/>
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 5h8"/>
-                  </svg>
-                  WebDAV Mount Point
-                </a>
-                <a href="/infuse/" class="inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:opacity-50 disabled:pointer-events-none ring-offset-background border border-input hover:bg-accent hover:text-accent-foreground h-10 py-2 px-4">
-                  <svg class="mr-2 h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.828 14.828a4 4 0 01-5.656 0M9 10h1m4 0h1m-6 4h8m-9-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
-                  </svg>
-                  Infuse Pro Compatible
-                </a>
+            <div class="flex items-center gap-4">
+              <div class="relative">
+                <i data-lucide="search" class="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 icon"></i>
+                <input
+                  type="text"
+                  placeholder="Search media..."
+                  oninput="handleSearch(event)"
+                  class="input pl-10 w-60 md:w-80" />
               </div>
             </div>
           </div>
         </div>
       </div>
-    </main>
+
+      <div class="p-4">
+        <!-- Folders -->
+        <div class="mb-8">
+          <h2 class="text-lg font-semibold mb-4 flex items-center gap-2">
+            <i data-lucide="folder" class="icon-lg"></i>
+            Directories
+          </h2>
+          <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
+            ${directoryCards || '<div class="col-span-full text-center text-muted-foreground py-12">No directories found</div>'}
+          </div>
+        </div>
+      </div>
+    </div>
   </div>
+  
+  ${this.getBaseScripts()}
 </body>
 </html>`;
   }
 
   generateDirectoryPage(directory: string, torrents: { [key: string]: Torrent }): string {
-    const torrentCards = Object.entries(torrents)
-      .map(([accessKey, torrent]) => `
-        <div class="group relative overflow-hidden rounded-lg border bg-card text-card-foreground shadow-sm transition-colors hover:bg-accent/50">
-          <a href="/html/${encodeURIComponent(directory)}/${encodeURIComponent(torrent.name)}/" class="absolute inset-0 z-10">
-            <span class="sr-only">Browse ${this.escapeHtml(torrent.name)}</span>
-          </a>
-          <div class="p-6">
-            <div class="flex items-start justify-between space-y-0 pb-2">
-              <div class="space-y-1 flex-1 min-w-0">
-                <div class="inline-flex items-center rounded-lg bg-primary/10 px-3 py-1 text-xs font-medium text-primary">
-                  🎬 Torrent
+    const torrentEntries = Object.entries(torrents);
+    
+    const torrentItems = torrentEntries.map(([accessKey, torrent]) => {
+      const itemCount = Object.keys(torrent.selectedFiles).length;
+      
+      // Grid view card
+      const gridCard = `
+        <div class="search-item">
+          <div class="card cursor-pointer transition-shadow hover:shadow-md"
+               data-searchable="${this.escapeHtml(torrent.name)}"
+               onclick="window.location.href='/html/${encodeURIComponent(directory)}/${encodeURIComponent(torrent.name)}/'">
+            <div class="p-4 text-center">
+              <div class="space-y-2">
+                <div class="flex justify-center">
+                  <i data-lucide="folder" class="icon-xl text-yellow-500"></i>
                 </div>
-                <h3 class="font-semibold leading-none tracking-tight text-sm truncate" title="${this.escapeHtml(torrent.name)}">
-                  ${this.escapeHtml(torrent.name)}
-                </h3>
-                <p class="text-xs text-muted-foreground">
-                  ${Object.keys(torrent.selectedFiles).length} files available
-                </p>
+                <div class="space-y-1">
+                  <p class="font-medium text-sm truncate" title="${this.escapeHtml(torrent.name)}">${this.escapeHtml(torrent.name)}</p>
+                  <p class="text-xs text-muted-foreground">${itemCount} items</p>
+                </div>
               </div>
-            </div>
-            <div class="flex items-center space-x-1 rounded-md bg-secondary/50 px-2 py-1 text-xs text-secondary-foreground mt-4">
-              <svg class="h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
-              </svg>
-              <span>View STRM Files</span>
             </div>
           </div>
         </div>
-      `).join('');
+      `;
+      
+      // List view row
+      const listRow = `
+        <div class="search-item">
+          <div class="card cursor-pointer transition-shadow hover:shadow-md"
+               data-searchable="${this.escapeHtml(torrent.name)}"
+               onclick="window.location.href='/html/${encodeURIComponent(directory)}/${encodeURIComponent(torrent.name)}/'">
+            <div class="p-3">
+              <div class="flex items-center gap-3">
+                <div class="flex justify-center">
+                  <i data-lucide="folder" class="icon-xl text-yellow-500"></i>
+                </div>
+                <div class="flex-1">
+                  <p class="font-medium text-sm truncate">${this.escapeHtml(torrent.name)}</p>
+                  <p class="text-xs text-muted-foreground">${itemCount} items</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      `;
+      
+      return { gridCard, listRow };
+    });
 
     return `<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Directory: ${this.escapeHtml(directory)} - Zurg Serverless</title>
-  <script src="https://cdn.tailwindcss.com"></script>
-  <script>
-    tailwind.config = {
-      theme: {
-        extend: {
-          colors: {
-            border: "hsl(var(--border))",
-            input: "hsl(var(--input))",
-            ring: "hsl(var(--ring))",
-            background: "hsl(var(--background))",
-            foreground: "hsl(var(--foreground))",
-            primary: {
-              DEFAULT: "hsl(var(--primary))",
-              foreground: "hsl(var(--primary-foreground))",
-            },
-            secondary: {
-              DEFAULT: "hsl(var(--secondary))",
-              foreground: "hsl(var(--secondary-foreground))",
-            },
-            muted: {
-              DEFAULT: "hsl(var(--muted))",
-              foreground: "hsl(var(--muted-foreground))",
-            },
-            accent: {
-              DEFAULT: "hsl(var(--accent))",
-              foreground: "hsl(var(--accent-foreground))",
-            },
-            card: {
-              DEFAULT: "hsl(var(--card))",
-              foreground: "hsl(var(--card-foreground))",
-            },
-          },
-        }
-      }
-    }
-  </script>
-  <style>
-    :root {
-      --background: 0 0% 100%;
-      --foreground: 222.2 84% 4.9%;
-      --card: 0 0% 100%;
-      --card-foreground: 222.2 84% 4.9%;
-      --primary: 222.2 47.4% 11.2%;
-      --primary-foreground: 210 40% 98%;
-      --secondary: 210 40% 96%;
-      --secondary-foreground: 222.2 84% 4.9%;
-      --muted: 210 40% 96%;
-      --muted-foreground: 215.4 16.3% 46.9%;
-      --accent: 210 40% 96%;
-      --accent-foreground: 222.2 84% 4.9%;
-      --border: 214.3 31.8% 91.4%;
-      --input: 214.3 31.8% 91.4%;
-      --ring: 222.2 84% 4.9%;
-    }
-    
-    @media (prefers-color-scheme: dark) {
-      :root {
-        --background: 222.2 84% 4.9%;
-        --foreground: 210 40% 98%;
-        --card: 222.2 84% 4.9%;
-        --card-foreground: 210 40% 98%;
-        --primary: 210 40% 98%;
-        --primary-foreground: 222.2 47.4% 11.2%;
-        --secondary: 217.2 32.6% 17.5%;
-        --secondary-foreground: 210 40% 98%;
-        --muted: 217.2 32.6% 17.5%;
-        --muted-foreground: 215 20.2% 65.1%;
-        --accent: 217.2 32.6% 17.5%;
-        --accent-foreground: 210 40% 98%;
-        --border: 217.2 32.6% 17.5%;
-        --input: 217.2 32.6% 17.5%;
-        --ring: 212.7 26.8% 83.9%;
-      }
-    }
-  </style>
+  <title>${this.escapeHtml(directory)} - Zurg Serverless</title>
+  ${this.getBaseStyles()}
 </head>
-<body class="min-h-screen bg-background font-sans antialiased">
-  <div class="relative flex min-h-screen flex-col">
-    <header class="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-      <div class="container flex h-14 items-center">
-        <div class="mr-4 flex">
-          <a class="mr-6 flex items-center space-x-2" href="/html/">
-            <span class="font-bold">🎬 Zurg</span>
-          </a>
-          <nav class="flex items-center space-x-6 text-sm font-medium">
-            <a class="transition-colors hover:text-foreground/80 text-muted-foreground" href="/html/">Browse</a>
-            <span class="text-muted-foreground">/</span>
-            <span class="text-foreground">${this.escapeHtml(directory)}</span>
-          </nav>
+<body class="min-h-screen bg-gray-50">
+  <div class="flex h-screen w-full">
+    ${this.generateSidebar('html')}
+    
+    <!-- Main Content -->
+    <div class="flex-1 min-w-0 overflow-auto bg-gray-50">
+      <!-- Mobile Header with Hamburger -->
+      <div class="md:hidden bg-white border-b px-4 py-3 flex items-center justify-between">
+        <button onclick="toggleSidebar()" class="p-2 rounded-md hover:bg-gray-100">
+          <i data-lucide="menu" class="icon"></i>
+        </button>
+        <h1 class="text-lg font-semibold truncate">${this.escapeHtml(directory)}</h1>
+        <div class="w-10"></div> <!-- Spacer for centering -->
+      </div>
+      
+      <!-- Header -->
+      <div class="bg-white border-b">
+        <div class="px-4 py-4">
+          <div class="flex items-center justify-between">
+            <div>
+              <h1 class="text-2xl font-bold text-gray-900 hidden md:block">Media Library</h1>
+              <p class="text-gray-600">${torrentEntries.length} items</p>
+            </div>
+            <div class="flex items-center gap-4">
+              <div class="relative">
+                <i data-lucide="search" class="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 icon"></i>
+                <input
+                  type="text"
+                  placeholder="Search media..."
+                  oninput="handleSearch(event)"
+                  class="input pl-10 w-60 md:w-80" />
+              </div>
+              <div class="flex border rounded-md">
+                <button id="grid-btn" onclick="setViewMode('grid')" class="btn btn-sm btn-ghost">
+                  <i data-lucide="grid-3x3" class="icon"></i>
+                </button>
+                <button id="list-btn" onclick="setViewMode('list')" class="btn btn-sm btn-ghost">
+                  <i data-lucide="list" class="icon"></i>
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Breadcrumbs -->
+          <div class="flex items-center gap-2 mt-4 text-sm hidden md:flex">
+            <button onclick="window.location.href='/html/'" class="btn btn-ghost btn-sm h-auto p-1 text-gray-600 hover:text-gray-900">
+              <i data-lucide="home" class="icon"></i>
+            </button>
+            <i data-lucide="chevron-right" class="icon text-gray-400"></i>
+            <span class="text-gray-900">${this.escapeHtml(directory)}</span>
+          </div>
         </div>
       </div>
-    </header>
-    <main class="flex-1">
-      <div class="container py-6">
-        <div class="flex flex-col space-y-6">
-          <div class="flex flex-col space-y-2">
-            <div class="flex items-center space-x-2">
-              <a href="/html/" class="inline-flex items-center text-sm text-muted-foreground hover:text-foreground transition-colors">
-                <svg class="mr-1 h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/>
-                </svg>
-                Back to Root
-              </a>
-            </div>
-            <h1 class="text-3xl font-bold tracking-tight">📁 ${this.escapeHtml(directory)}</h1>
-            <p class="text-muted-foreground">
-              ${Object.keys(torrents).length} torrents available for streaming
-            </p>
+
+      <div class="p-4">
+        <!-- Folders -->
+        <div class="mb-8">
+          <h2 class="text-lg font-semibold mb-4 flex items-center gap-2">
+            <i data-lucide="folder" class="icon-lg"></i>
+            Folders
+          </h2>
+          <!-- Grid View -->
+          <div id="grid-view" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4 hidden">
+            ${torrentItems.map(item => item.gridCard).join('') || '<div class="col-span-full text-center text-muted-foreground py-12">No torrents found</div>'}
           </div>
           
-          <div class="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-            ${torrentCards || '<div class="col-span-full text-center text-muted-foreground py-8">No torrents found</div>'}
+          <!-- List View -->
+          <div id="list-view" class="space-y-2">
+            ${torrentItems.map(item => item.listRow).join('') || '<div class="text-center text-muted-foreground py-12">No torrents found</div>'}
           </div>
         </div>
       </div>
-    </main>
+    </div>
   </div>
+  
+  ${this.getBaseScripts()}
 </body>
 </html>`;
   }
 
   generateTorrentPage(directory: string, torrent: Torrent, torrentName: string): string {
-    const fileCards = Object.entries(torrent.selectedFiles)
+    const fileItems = Object.entries(torrent.selectedFiles)
+      .filter(([_, file]) => file.state === 'ok_file')
       .map(([filename, file]) => {
-        if (file.state !== 'ok_file') return '';
         const strmFilename = this.generateSTRMFilename(filename);
-        return `
-          <div class="group relative overflow-hidden rounded-lg border bg-card text-card-foreground shadow-sm transition-colors hover:bg-accent/50">
-            <a href="/html/${encodeURIComponent(directory)}/${encodeURIComponent(torrentName)}/${encodeURIComponent(strmFilename)}" class="absolute inset-0 z-10">
-              <span class="sr-only">View STRM content for ${this.escapeHtml(strmFilename)}</span>
-            </a>
-            <div class="p-4">
-              <div class="flex items-start justify-between space-y-0 pb-2">
-                <div class="space-y-1 flex-1 min-w-0">
-                  <div class="inline-flex items-center rounded-lg bg-green-100 dark:bg-green-900/20 px-2 py-1 text-xs font-medium text-green-700 dark:text-green-400">
-                    📄 STRM
+        const { title, year, season, episode } = this.extractMediaInfo(filename);
+        
+        // Grid view card
+        const gridCard = `
+          <div class="search-item">
+            <div class="card cursor-pointer transition-shadow hover:shadow-md"
+                 data-searchable="${this.escapeHtml(filename)}"
+                 onclick="window.location.href='/html/${encodeURIComponent(directory)}/${encodeURIComponent(torrentName)}/${encodeURIComponent(strmFilename)}'">
+              <div class="p-4">
+                <div class="flex flex-col items-center text-center space-y-3">
+                  <div class="w-16 h-24 bg-gradient-to-br from-gray-200 to-gray-300 dark:from-gray-700 dark:to-gray-800 rounded flex items-center justify-center">
+                    <i data-lucide="film" class="icon-xl text-gray-600 dark:text-gray-400"></i>
                   </div>
-                  <h3 class="font-medium leading-none tracking-tight text-sm truncate" title="${this.escapeHtml(strmFilename)}">
-                    ${this.escapeHtml(strmFilename)}
-                  </h3>
-                  <p class="text-xs text-muted-foreground truncate" title="${this.escapeHtml(filename)}">
-                    Original: ${this.escapeHtml(filename)}
-                  </p>
-                  <p class="text-xs text-muted-foreground">
-                    ${this.formatBytes(file.bytes)}
-                  </p>
+                  <div class="space-y-2 w-full">
+                    <h3 class="font-medium text-sm line-clamp-2" title="${this.escapeHtml(title || filename)}">
+                      ${this.escapeHtml(title || filename)}
+                    </h3>
+                    <div class="flex flex-wrap gap-1 justify-center">
+                      ${year ? `<span class="badge badge-secondary">${year}</span>` : ''}
+                      ${season && episode ? `<span class="badge badge-outline">S${season.toString().padStart(2, '0')}E${episode.toString().padStart(2, '0')}</span>` : ''}
+                    </div>
+                  </div>
                 </div>
-              </div>
-              <div class="flex items-center space-x-1 rounded-md bg-secondary/50 px-2 py-1 text-xs text-secondary-foreground mt-3">
-                <svg class="h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>
-                </svg>
-                <span>View Content</span>
               </div>
             </div>
           </div>
         `;
-      }).filter(Boolean).join('');
+        
+        // List view row
+        const listRow = `
+          <div class="search-item">
+            <div class="card cursor-pointer transition-shadow hover:shadow-md"
+                 data-searchable="${this.escapeHtml(filename)}"
+                 onclick="window.location.href='/html/${encodeURIComponent(directory)}/${encodeURIComponent(torrentName)}/${encodeURIComponent(strmFilename)}'">
+              <div class="p-3">
+                <div class="flex items-center gap-3">
+                  <div class="p-2 rounded-lg bg-green-500/10 text-green-600 dark:text-green-400">
+                    <i data-lucide="file-video" class="icon-lg"></i>
+                  </div>
+                  <div class="flex-1 min-w-0">
+                    <h3 class="font-medium text-sm truncate" title="${this.escapeHtml(strmFilename)}">
+                      ${this.escapeHtml(strmFilename)}
+                    </h3>
+                    <p class="text-xs text-muted-foreground truncate" title="${this.escapeHtml(filename)}">
+                      Original: ${this.escapeHtml(filename)}
+                    </p>
+                  </div>
+                  <div class="text-sm text-muted-foreground">
+                    ${this.formatBytes(file.bytes)}
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        `;
+        
+        return { gridCard, listRow, filename, strmFilename, file };
+      });
 
     return `<!DOCTYPE html>
 <html lang="en">
@@ -404,125 +783,97 @@ export class HTMLBrowser {
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>${this.escapeHtml(torrent.name)} - Zurg Serverless</title>
-  <script src="https://cdn.tailwindcss.com"></script>
-  <script>
-    tailwind.config = {
-      theme: {
-        extend: {
-          colors: {
-            border: "hsl(var(--border))",
-            input: "hsl(var(--input))",
-            ring: "hsl(var(--ring))",
-            background: "hsl(var(--background))",
-            foreground: "hsl(var(--foreground))",
-            primary: {
-              DEFAULT: "hsl(var(--primary))",
-              foreground: "hsl(var(--primary-foreground))",
-            },
-            secondary: {
-              DEFAULT: "hsl(var(--secondary))",
-              foreground: "hsl(var(--secondary-foreground))",
-            },
-            muted: {
-              DEFAULT: "hsl(var(--muted))",
-              foreground: "hsl(var(--muted-foreground))",
-            },
-            accent: {
-              DEFAULT: "hsl(var(--accent))",
-              foreground: "hsl(var(--accent-foreground))",
-            },
-            card: {
-              DEFAULT: "hsl(var(--card))",
-              foreground: "hsl(var(--card-foreground))",
-            },
-          },
-        }
-      }
-    }
-  </script>
-  <style>
-    :root {
-      --background: 0 0% 100%;
-      --foreground: 222.2 84% 4.9%;
-      --card: 0 0% 100%;
-      --card-foreground: 222.2 84% 4.9%;
-      --primary: 222.2 47.4% 11.2%;
-      --primary-foreground: 210 40% 98%;
-      --secondary: 210 40% 96%;
-      --secondary-foreground: 222.2 84% 4.9%;
-      --muted: 210 40% 96%;
-      --muted-foreground: 215.4 16.3% 46.9%;
-      --accent: 210 40% 96%;
-      --accent-foreground: 222.2 84% 4.9%;
-      --border: 214.3 31.8% 91.4%;
-      --input: 214.3 31.8% 91.4%;
-      --ring: 222.2 84% 4.9%;
-    }
-    
-    @media (prefers-color-scheme: dark) {
-      :root {
-        --background: 222.2 84% 4.9%;
-        --foreground: 210 40% 98%;
-        --card: 222.2 84% 4.9%;
-        --card-foreground: 210 40% 98%;
-        --primary: 210 40% 98%;
-        --primary-foreground: 222.2 47.4% 11.2%;
-        --secondary: 217.2 32.6% 17.5%;
-        --secondary-foreground: 210 40% 98%;
-        --muted: 217.2 32.6% 17.5%;
-        --muted-foreground: 215 20.2% 65.1%;
-        --accent: 217.2 32.6% 17.5%;
-        --accent-foreground: 210 40% 98%;
-        --border: 217.2 32.6% 17.5%;
-        --input: 217.2 32.6% 17.5%;
-        --ring: 212.7 26.8% 83.9%;
-      }
-    }
-  </style>
+  ${this.getBaseStyles()}
 </head>
-<body class="min-h-screen bg-background font-sans antialiased">
-  <div class="relative flex min-h-screen flex-col">
-    <header class="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-      <div class="container flex h-14 items-center">
-        <div class="mr-4 flex">
-          <a class="mr-6 flex items-center space-x-2" href="/html/">
-            <span class="font-bold">🎬 Zurg</span>
-          </a>
-          <nav class="flex items-center space-x-2 text-sm font-medium">
-            <a class="transition-colors hover:text-foreground/80 text-muted-foreground" href="/html/">Browse</a>
-            <span class="text-muted-foreground">/</span>
-            <a class="transition-colors hover:text-foreground/80 text-muted-foreground" href="/html/${encodeURIComponent(directory)}/">${this.escapeHtml(directory)}</a>
-            <span class="text-muted-foreground">/</span>
-            <span class="text-foreground truncate max-w-48">${this.escapeHtml(torrent.name)}</span>
+<body class="min-h-screen bg-gray-50">
+  <div class="flex h-screen w-full">
+    ${this.generateSidebar('html')}
+    
+    <!-- Main Content -->
+    <div class="flex-1 min-w-0 overflow-auto bg-gray-50">
+      <!-- Mobile Header with Hamburger -->
+      <div class="md:hidden bg-white border-b px-4 py-3 flex items-center justify-between">
+        <button onclick="toggleSidebar()" class="p-2 rounded-md hover:bg-gray-100">
+          <i data-lucide="menu" class="icon"></i>
+        </button>
+        <h1 class="text-lg font-semibold truncate max-w-[200px]" title="${this.escapeHtml(torrent.name)}">
+          ${this.escapeHtml(torrent.name)}
+        </h1>
+        <div class="w-10"></div> <!-- Spacer for centering -->
+      </div>
+      
+      <!-- Header -->
+      <div class="bg-white border-b">
+        <div class="px-4 py-4">
+          <div class="flex items-center justify-between">
+            <div class="flex items-center gap-4">
+              <div class="flex-1 min-w-0">
+                <h1 class="text-xl font-bold truncate hidden md:block" title="${this.escapeHtml(torrent.name)}">
+                  ${this.escapeHtml(torrent.name)}
+                </h1>
+                <p class="text-gray-600">${fileItems.length} STRM files ready</p>
+              </div>
+            </div>
+            
+            <div class="flex items-center gap-4">
+              <div class="relative">
+                <i data-lucide="search" class="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 icon"></i>
+                <input
+                  type="text"
+                  placeholder="Search files..."
+                  oninput="handleSearch(event)"
+                  class="input pl-10 w-60 md:w-80" />
+              </div>
+              
+              <div class="flex border rounded-md">
+                <button id="grid-btn" onclick="setViewMode('grid')" class="btn btn-sm btn-ghost">
+                  <i data-lucide="grid-3x3" class="icon"></i>
+                </button>
+                <button id="list-btn" onclick="setViewMode('list')" class="btn btn-sm btn-ghost">
+                  <i data-lucide="list" class="icon"></i>
+                </button>
+              </div>
+            </div>
+          </div>
+          
+          <!-- Breadcrumbs -->
+          <nav class="flex items-center gap-2 mt-4 text-sm overflow-x-auto hidden md:flex">
+            <button onclick="window.location.href='/html/'" class="btn btn-ghost btn-sm h-auto p-1 text-gray-600 hover:text-gray-900">
+              <i data-lucide="home" class="icon"></i>
+            </button>
+            <i data-lucide="chevron-right" class="icon text-gray-400"></i>
+            <button onclick="window.location.href='/html/${encodeURIComponent(directory)}/'" class="btn btn-ghost btn-sm h-auto p-1 text-gray-600 hover:text-gray-900 truncate-left max-w-[150px]">
+              <span>${this.escapeHtml(directory)}</span>
+            </button>
+            <i data-lucide="chevron-right" class="icon text-gray-400"></i>
+            <span class="text-gray-900 truncate-left max-w-[250px]"><span>${this.escapeHtml(torrent.name)}</span></span>
           </nav>
         </div>
       </div>
-    </header>
-    <main class="flex-1">
-      <div class="container py-6">
-        <div class="flex flex-col space-y-6">
-          <div class="flex flex-col space-y-2">
-            <div class="flex items-center space-x-2">
-              <a href="/html/${encodeURIComponent(directory)}/" class="inline-flex items-center text-sm text-muted-foreground hover:text-foreground transition-colors">
-                <svg class="mr-1 h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/>
-                </svg>
-                Back to ${this.escapeHtml(directory)}
-              </a>
-            </div>
-            <h1 class="text-2xl font-bold tracking-tight">🎬 ${this.escapeHtml(torrent.name)}</h1>
-            <p class="text-muted-foreground">
-              ${Object.keys(torrent.selectedFiles).length} STRM files ready for streaming
-            </p>
+      
+      <!-- Content -->
+      <main class="p-4">
+        <!-- Files -->
+        <div>
+          <h2 class="text-lg font-semibold mb-4 flex items-center gap-2">
+            <i data-lucide="film" class="icon-lg"></i>
+            Files
+          </h2>
+          <!-- Grid View -->
+          <div id="grid-view" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4 hidden">
+            ${fileItems.map(item => item.gridCard).join('') || '<div class="col-span-full text-center text-muted-foreground py-12">No files available</div>'}
           </div>
           
-          <div class="grid gap-3 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-            ${fileCards || '<div class="col-span-full text-center text-muted-foreground py-8">No files available</div>'}
+          <!-- List View -->
+          <div id="list-view" class="space-y-2">
+            ${fileItems.map(item => item.listRow).join('') || '<div class="text-center text-muted-foreground py-12">No files available</div>'}
           </div>
         </div>
-      </div>
-    </main>
+      </main>
+    </div>
   </div>
+  
+  ${this.getBaseScripts()}
 </body>
 </html>`;
   }
@@ -531,59 +882,34 @@ export class HTMLBrowser {
     // Remove .strm extension to get base filename
     const baseFilename = filename.endsWith('.strm') ? filename.slice(0, -5) : filename;
     
-    // Find the actual file by matching the base name (since STRM removes the original extension)
+    // Find the actual file by matching the base name
     const actualFilename = Object.keys(torrent.selectedFiles).find(f => {
-      // Remove extension from actual filename to compare with base
       const actualBase = f.lastIndexOf('.') !== -1 ? f.substring(0, f.lastIndexOf('.')) : f;
       return actualBase === baseFilename;
     });
     
-    console.log('HTML STRM File Page - Debug:', {
-      filename,
-      baseFilename,
-      actualFilename,
-      availableFiles: Object.keys(torrent.selectedFiles)
-    });
-    
     if (!actualFilename) {
-      console.log('HTML STRM File Page - No matching file found for base:', baseFilename);
-      
-      return `<!DOCTYPE html>
-<html>
-<head><title>Error</title></head>
-<body>
-<h1>File not found or unavailable</h1>
-<p><strong>Looking for base name:</strong> ${this.escapeHtml(baseFilename)}</p>
-<p><strong>Available files:</strong></p>
-<ul>
-${Object.keys(torrent.selectedFiles).map(f => `<li>${this.escapeHtml(f)}</li>`).join('')}
-</ul>
-</body>
-</html>`;
+      return this.generateErrorPage('File not found', `Could not find file matching: ${baseFilename}`);
     }
     
     const file = torrent.selectedFiles[actualFilename];
     
     if (!file || file.state !== 'ok_file' || !file.link) {
-      console.log('HTML STRM File Page - File exists but not available:', {
-        actualFilename,
-        fileState: file?.state,
-        hasLink: !!file?.link
-      });
-      
-      return `<!DOCTYPE html>
-<html>
-<head><title>Error</title></head>
-<body>
-<h1>File not available</h1>
-<p><strong>File:</strong> ${this.escapeHtml(actualFilename)}</p>
-<p><strong>State:</strong> ${this.escapeHtml(file?.state || 'unknown')}</p>
-<p><strong>Has Link:</strong> ${file?.link ? 'Yes' : 'No'}</p>
-</body>
-</html>`;
+      return this.generateErrorPage('File not available', `File state: ${file?.state || 'unknown'}`);
     }
 
     const strmContent = await this.generateSTRMContent(directory, torrent.id, actualFilename, file.link);
+    
+    // Fetch additional cache data for this file
+    let cacheData: Record<string, any> = {};
+    try {
+      const cacheManager = new STRMCacheManager(this.env);
+      const strmCode = await cacheManager.getOrCreateSTRMCode(directory, torrent.id, actualFilename, file.link);
+      // With D1, we could potentially fetch additional metadata here if needed
+      cacheData = { strmCode, createdAt: Date.now() };
+    } catch (error) {
+      console.error('Failed to fetch cache data:', error);
+    }
     
     return `<!DOCTYPE html>
 <html lang="en">
@@ -591,190 +917,210 @@ ${Object.keys(torrent.selectedFiles).map(f => `<li>${this.escapeHtml(f)}</li>`).
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>STRM: ${this.escapeHtml(filename)} - Zurg Serverless</title>
-  <script src="https://cdn.tailwindcss.com"></script>
-  <script>
-    tailwind.config = {
-      theme: {
-        extend: {
-          colors: {
-            border: "hsl(var(--border))",
-            input: "hsl(var(--input))",
-            ring: "hsl(var(--ring))",
-            background: "hsl(var(--background))",
-            foreground: "hsl(var(--foreground))",
-            primary: {
-              DEFAULT: "hsl(var(--primary))",
-              foreground: "hsl(var(--primary-foreground))",
-            },
-            secondary: {
-              DEFAULT: "hsl(var(--secondary))",
-              foreground: "hsl(var(--secondary-foreground))",
-            },
-            muted: {
-              DEFAULT: "hsl(var(--muted))",
-              foreground: "hsl(var(--muted-foreground))",
-            },
-            accent: {
-              DEFAULT: "hsl(var(--accent))",
-              foreground: "hsl(var(--accent-foreground))",
-            },
-            card: {
-              DEFAULT: "hsl(var(--card))",
-              foreground: "hsl(var(--card-foreground))",
-            },
-          },
-        }
-      }
-    }
-  </script>
-  <style>
-    :root {
-      --background: 0 0% 100%;
-      --foreground: 222.2 84% 4.9%;
-      --card: 0 0% 100%;
-      --card-foreground: 222.2 84% 4.9%;
-      --primary: 222.2 47.4% 11.2%;
-      --primary-foreground: 210 40% 98%;
-      --secondary: 210 40% 96%;
-      --secondary-foreground: 222.2 84% 4.9%;
-      --muted: 210 40% 96%;
-      --muted-foreground: 215.4 16.3% 46.9%;
-      --accent: 210 40% 96%;
-      --accent-foreground: 222.2 84% 4.9%;
-      --border: 214.3 31.8% 91.4%;
-      --input: 214.3 31.8% 91.4%;
-      --ring: 222.2 84% 4.9%;
-    }
-    
-    @media (prefers-color-scheme: dark) {
-      :root {
-        --background: 222.2 84% 4.9%;
-        --foreground: 210 40% 98%;
-        --card: 222.2 84% 4.9%;
-        --card-foreground: 210 40% 98%;
-        --primary: 210 40% 98%;
-        --primary-foreground: 222.2 47.4% 11.2%;
-        --secondary: 217.2 32.6% 17.5%;
-        --secondary-foreground: 210 40% 98%;
-        --muted: 217.2 32.6% 17.5%;
-        --muted-foreground: 215 20.2% 65.1%;
-        --accent: 217.2 32.6% 17.5%;
-        --accent-foreground: 210 40% 98%;
-        --border: 217.2 32.6% 17.5%;
-        --input: 217.2 32.6% 17.5%;
-        --ring: 212.7 26.8% 83.9%;
-      }
-    }
-  </style>
+  ${this.getBaseStyles()}
 </head>
-<body class="min-h-screen bg-background font-sans antialiased">
-  <div class="relative flex min-h-screen flex-col">
-    <header class="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-      <div class="container flex h-14 items-center">
-        <div class="mr-4 flex">
-          <a class="mr-6 flex items-center space-x-2" href="/html/">
-            <span class="font-bold">🎬 Zurg</span>
-          </a>
-          <nav class="flex items-center space-x-2 text-sm font-medium">
-            <a class="transition-colors hover:text-foreground/80 text-muted-foreground" href="/html/">Browse</a>
-            <span class="text-muted-foreground">/</span>
-            <a class="transition-colors hover:text-foreground/80 text-muted-foreground" href="/html/${encodeURIComponent(directory)}/">${this.escapeHtml(directory)}</a>
-            <span class="text-muted-foreground">/</span>
-            <a class="transition-colors hover:text-foreground/80 text-muted-foreground" href="/html/${encodeURIComponent(directory)}/${encodeURIComponent(torrentName)}/">${this.escapeHtml(torrent.name.length > 20 ? torrent.name.substring(0, 20) + '...' : torrent.name)}</a>
-            <span class="text-muted-foreground">/</span>
-            <span class="text-foreground">${this.escapeHtml(filename)}</span>
+<body class="min-h-screen bg-gray-50">
+  <div class="flex h-screen w-full">
+    ${this.generateSidebar('html')}
+    
+    <!-- Main Content -->
+    <div class="flex-1 min-w-0 overflow-auto bg-gray-50">
+      <!-- Mobile Header with Hamburger -->
+      <div class="md:hidden bg-white border-b px-4 py-3 flex items-center justify-between">
+        <button onclick="toggleSidebar()" class="p-2 rounded-md hover:bg-gray-100">
+          <i data-lucide="menu" class="icon"></i>
+        </button>
+        <h1 class="text-lg font-semibold truncate max-w-[200px]" title="${this.escapeHtml(filename)}">
+          ${this.escapeHtml(filename)}
+        </h1>
+        <div class="w-10"></div> <!-- Spacer for centering -->
+      </div>
+      
+      <!-- Header -->
+      <div class="bg-white border-b">
+        <div class="px-4 py-4">
+          <div class="flex items-center gap-4">
+            <div class="flex-1 min-w-0">
+              <h1 class="text-xl font-bold truncate hidden md:block" title="${this.escapeHtml(filename)}">
+                ${this.escapeHtml(filename)}
+              </h1>
+              <p class="text-gray-600">STRM file content</p>
+            </div>
+          </div>
+          
+          <!-- Breadcrumbs -->
+          <nav class="flex items-center gap-2 mt-4 text-sm overflow-x-auto hidden md:flex">
+            <button onclick="window.location.href='/html/'" class="btn btn-ghost btn-sm h-auto p-1 text-gray-600 hover:text-gray-900">
+              <i data-lucide="home" class="icon"></i>
+            </button>
+            <i data-lucide="chevron-right" class="icon text-gray-400"></i>
+            <button onclick="window.location.href='/html/${encodeURIComponent(directory)}/'" class="btn btn-ghost btn-sm h-auto p-1 text-gray-600 hover:text-gray-900 truncate-left max-w-[120px]">
+              <span>${this.escapeHtml(directory)}</span>
+            </button>
+            <i data-lucide="chevron-right" class="icon text-gray-400"></i>
+            <button onclick="window.location.href='/html/${encodeURIComponent(directory)}/${encodeURIComponent(torrentName)}/'" class="btn btn-ghost btn-sm h-auto p-1 text-gray-600 hover:text-gray-900 truncate-left max-w-[150px]">
+              <span>${this.escapeHtml(torrent.name)}</span>
+            </button>
+            <i data-lucide="chevron-right" class="icon text-gray-400"></i>
+            <span class="text-gray-900 truncate max-w-[200px]">${this.escapeHtml(filename)}</span>
           </nav>
         </div>
       </div>
-    </header>
-    <main class="flex-1">
-      <div class="container py-6">
-        <div class="flex flex-col space-y-6">
-          <div class="flex flex-col space-y-2">
-            <div class="flex items-center space-x-2">
-              <a href="/html/${encodeURIComponent(directory)}/${encodeURIComponent(torrentName)}/" class="inline-flex items-center text-sm text-muted-foreground hover:text-foreground transition-colors">
-                <svg class="mr-1 h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/>
-                </svg>
-                Back to Torrent
-              </a>
-            </div>
-            <h1 class="text-2xl font-bold tracking-tight">📄 ${this.escapeHtml(filename)}</h1>
-            <p class="text-muted-foreground">
-              STRM file content for streaming
-            </p>
+      
+      <!-- Content -->
+      <main class="p-6">
+        <div class="max-w-4xl mx-auto grid gap-6 lg:grid-cols-2">
+          <!-- File Information Card -->
+          <div class="card p-4 md:p-6">
+            <h2 class="text-lg font-semibold mb-4">File Information</h2>
+            <dl class="space-y-3">
+              <div class="flex flex-col sm:flex-row sm:justify-between">
+                <dt class="text-sm text-muted-foreground">Original file:</dt>
+                <dd class="text-sm font-medium break-all sm:text-right sm:ml-2">${this.escapeHtml(actualFilename)}</dd>
+              </div>
+              <div class="flex flex-col sm:flex-row sm:justify-between">
+                <dt class="text-sm text-muted-foreground">STRM size:</dt>
+                <dd class="text-sm font-medium">${strmContent.size} bytes</dd>
+              </div>
+              <div class="flex flex-col sm:flex-row sm:justify-between">
+                <dt class="text-sm text-muted-foreground">File size:</dt>
+                <dd class="text-sm font-medium">${this.formatBytes(file.bytes)}</dd>
+              </div>
+              ${cacheData ? `
+              <div class="flex flex-col sm:flex-row sm:justify-between">
+                <dt class="text-sm text-muted-foreground">Directory:</dt>
+                <dd class="text-sm font-medium">${this.escapeHtml(directory)}</dd>
+              </div>
+              ` : ''}
+              ${torrent.id ? `
+              <div class="flex flex-col sm:flex-row sm:justify-between">
+                <dt class="text-sm text-muted-foreground">Torrent ID:</dt>
+                <dd class="text-sm font-medium font-mono break-all">${this.escapeHtml(torrent.id)}</dd>
+              </div>
+              ` : ''}
+              ${filename ? `
+              <div class="flex flex-col sm:flex-row sm:justify-between">
+                <dt class="text-sm text-muted-foreground">Cached filename:</dt>
+                <dd class="text-sm font-medium break-all sm:text-right sm:ml-2">${this.escapeHtml(actualFilename)}</dd>
+              </div>
+              ` : ''}
+              ${file.link ? `
+              <div class="flex flex-col sm:flex-row sm:justify-between">
+                <dt class="text-sm text-muted-foreground">RD Link:</dt>
+                <dd class="text-sm font-medium break-all sm:text-right sm:ml-2">
+                  <a href="${this.escapeHtml(file.link)}" target="_blank" class="text-blue-600 hover:text-blue-800">
+                    ${this.escapeHtml(file.link.substring(0, 50))}...
+                  </a>
+                </dd>
+              </div>
+              ` : ''}
+              <div class="flex flex-col sm:flex-row sm:justify-between">
+                <dt class="text-sm text-muted-foreground">Status:</dt>
+                <dd class="text-sm font-medium">
+                  <span class="badge badge-secondary">
+                    <i data-lucide="check-circle" class="icon mr-1"></i>
+                    Ready to stream
+                  </span>
+                </dd>
+              </div>
+            </dl>
           </div>
           
-          <div class="grid gap-6 lg:grid-cols-2">
-            <div class="rounded-lg border bg-card text-card-foreground shadow-sm">
-              <div class="flex flex-col space-y-1.5 p-6">
-                <h3 class="text-lg font-semibold leading-none tracking-tight">File Information</h3>
-                <p class="text-sm text-muted-foreground">Details about the original media file</p>
+          <!-- STRM Content Card -->
+          <div class="card p-4 md:p-6">
+            <h2 class="text-lg font-semibold mb-4">STRM Content</h2>
+            <div class="space-y-4">
+              <div class="p-4 rounded-lg bg-muted font-mono text-sm break-all">
+                ${this.escapeHtml(strmContent.content)}
               </div>
-              <div class="p-6 pt-0">
-                <dl class="grid gap-3">
-                  <div class="flex justify-between">
-                    <dt class="text-sm text-muted-foreground">Original file:</dt>
-                    <dd class="text-sm font-medium break-all">${this.escapeHtml(actualFilename)}</dd>
-                  </div>
-                  <div class="flex justify-between">
-                    <dt class="text-sm text-muted-foreground">STRM size:</dt>
-                    <dd class="text-sm font-medium">${strmContent.size} bytes</dd>
-                  </div>
-                  <div class="flex justify-between">
-                    <dt class="text-sm text-muted-foreground">Status:</dt>
-                    <dd class="text-sm font-medium">
-                      <span class="inline-flex items-center rounded-full bg-green-100 dark:bg-green-900/20 px-2 py-1 text-xs font-medium text-green-700 dark:text-green-400">
-                        ✓ Ready to stream
-                      </span>
-                    </dd>
-                  </div>
-                </dl>
+              <div class="flex gap-2">
+                <button id="copy-btn" onclick="copyToClipboard('${this.escapeAttr(strmContent.content)}', 'copy-btn')"
+                        class="btn btn-outline btn-sm">
+                  <i data-lucide="copy" class="icon mr-2"></i>
+                  Copy URL
+                </button>
               </div>
             </div>
-            
-            <div class="rounded-lg border bg-card text-card-foreground shadow-sm">
-              <div class="flex flex-col space-y-1.5 p-6">
-                <h3 class="text-lg font-semibold leading-none tracking-tight">STRM Content</h3>
-                <p class="text-sm text-muted-foreground">The streaming URL contained in this file</p>
-              </div>
-              <div class="p-6 pt-0">
-                <div class="rounded-lg bg-muted p-4">
-                  <code class="text-sm break-all font-mono">${this.escapeHtml(strmContent.content)}</code>
-                </div>
-                <div class="mt-4">
-                  <a href="${this.escapeHtml(strmContent.content)}" target="_blank" class="inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:opacity-50 disabled:pointer-events-none ring-offset-background bg-primary text-primary-foreground hover:bg-primary/90 h-10 py-2 px-4">
-                    <svg class="mr-2 h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.828 14.828a4 4 0 01-5.656 0M9 10h1m4 0h1m-6 4h8m-9-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
-                    </svg>
-                    Test Stream URL
-                  </a>
-                </div>
-              </div>
+          </div>
+          
+          <!-- File Path Card -->
+          <div class="card p-4 md:p-6 lg:col-span-2">
+            <h2 class="text-lg font-semibold mb-4">File Path</h2>
+            <div class="p-4 rounded-lg bg-muted font-mono text-xs break-all text-muted-foreground">
+              /dav/${this.escapeHtml(directory)}/${this.escapeHtml(torrentName)}/${this.escapeHtml(filename)}
+            </div>
+            <div class="mt-3">
+              <a href="/dav/${encodeURIComponent(directory)}/${encodeURIComponent(torrentName)}/${encodeURIComponent(filename)}"
+                 download="${this.escapeHtml(filename)}"
+                 class="btn btn-primary btn-sm">
+                <i data-lucide="download" class="icon mr-2"></i>
+                Download STRM File
+              </a>
             </div>
           </div>
         </div>
-      </div>
-    </main>
+      </main>
+    </div>
   </div>
+  
+  ${this.getBaseScripts()}
 </body>
 </html>`;
   }
 
+  private generateErrorPage(title: string, message: string): string {
+    return `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Error - Zurg Serverless</title>
+  ${this.getBaseStyles()}
+</head>
+<body class="min-h-screen bg-gray-50 flex items-center justify-center">
+  <div class="text-center">
+    <i data-lucide="alert-triangle" class="icon-xl text-red-500 mb-4 mx-auto"></i>
+    <h1 class="text-2xl font-bold mb-2">${this.escapeHtml(title)}</h1>
+    <p class="text-muted-foreground mb-6">${this.escapeHtml(message)}</p>
+    <button onclick="window.location.href='/html/'" class="btn btn-primary">
+      <i data-lucide="home" class="icon mr-2"></i>
+      Back to Home
+    </button>
+  </div>
+  ${this.getBaseScripts()}
+</body>
+</html>`;
+  }
+
+  private extractMediaInfo(filename: string) {
+    // Extract year from movie files
+    const yearMatch = filename.match(/\((\d{4})\)/);
+    const year = yearMatch ? parseInt(yearMatch[1]) : undefined;
+
+    // Extract season/episode from TV files
+    const episodeMatch = filename.match(/S(\d+)E(\d+)/i);
+    const season = episodeMatch ? parseInt(episodeMatch[1]) : undefined;
+    const episode = episodeMatch ? parseInt(episodeMatch[2]) : undefined;
+
+    // Clean title
+    const title = filename
+      .replace(/\.\w+$/, '') // Remove extension
+      .replace(/\(\d{4}\)/, '') // Remove year
+      .replace(/S\d+E\d+.*/i, '') // Remove episode info
+      .replace(/\[.*?\]/g, '') // Remove brackets content
+      .replace(/\./g, ' ') // Replace dots with spaces
+      .trim();
+
+    return { title, year, season, episode };
+  }
+
   private async generateSTRMContent(directory: string, torrentKey: string, filename: string, fileLink: string): Promise<{ content: string; size: number }> {
-    // Use the cache manager to get or create a short STRM code
     const cacheManager = new STRMCacheManager(this.env);
     const strmCode = await cacheManager.getOrCreateSTRMCode(directory, torrentKey, filename, fileLink);
     
-    console.log('HTML STRM Content Generation:', { directory, torrentKey, filename, strmCode });
-    
-    // STRM content should point to our short /strm/ endpoint
     const url = `${this.baseURL}/strm/${strmCode}`;
-    
     const content = url;
     const size = new TextEncoder().encode(content).length;
-    
-    console.log('HTML STRM Content Generated:', { url, size });
     
     return { content, size };
   }
@@ -800,11 +1146,281 @@ ${Object.keys(torrent.selectedFiles).map(f => `<li>${this.escapeHtml(f)}</li>`).
     });
   }
 
+  private escapeAttr(text: string): string {
+    return text.replace(/[&<>"'\\]/g, (match) => {
+      const escapes: { [key: string]: string } = {
+        '&': '&amp;',
+        '<': '&lt;',
+        '>': '&gt;',
+        '"': '&quot;',
+        "'": '&#39;',
+        '\\': '\\\\'
+      };
+      return escapes[match];
+    });
+  }
+
   private formatBytes(bytes: number): string {
     if (bytes === 0) return '0 Bytes';
     const k = 1024;
     const sizes = ['Bytes', 'KB', 'MB', 'GB'];
     const i = Math.floor(Math.log(bytes) / Math.log(k));
     return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+  }
+
+  async generateHomePage(userInfo: {user: any; traffic: any} | null = null): Promise<string> {
+    return `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Zurg Serverless - Home</title>
+  ${this.getBaseStyles()}
+</head>
+<body class="min-h-screen bg-gray-50">
+  <div class="flex h-screen w-full">
+    ${this.generateSidebar('home')}
+    
+    <!-- Main Content -->
+    <div class="flex-1 min-w-0 overflow-auto bg-gray-50">
+      <!-- Mobile Header with Hamburger -->
+      <div class="md:hidden bg-white border-b px-4 py-3 flex items-center justify-between">
+        <button onclick="toggleSidebar()" class="p-2 rounded-md hover:bg-gray-100">
+          <i data-lucide="menu" class="icon"></i>
+        </button>
+        <h1 class="text-lg font-semibold">Zurg Serverless</h1>
+        <div class="w-10"></div> <!-- Spacer for centering -->
+      </div>
+      
+      <!-- Header -->
+      <div class="bg-white border-b">
+        <div class="px-4 py-4">
+          <div class="flex items-center justify-between">
+            <div>
+              <h1 class="text-2xl font-bold text-gray-900 hidden md:block">Zurg Serverless</h1>
+              <p class="text-gray-600">serverless webdav with an infinite library of movies and series</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="p-4">
+        <div class="grid gap-6">
+          ${this.generateFilesBlock()}
+          <div class="grid gap-6 md:grid-cols-2">
+            ${this.generateConfigurationBlock()}
+            ${this.generateRealDebridBlock(userInfo)}
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  
+  ${this.getBaseScripts()}
+</body>
+</html>`;
+  }
+
+  private generateFilesBlock(): string {
+    return `
+      <!-- Files Block -->
+      <div class="card">
+        <div class="flex flex-col space-y-1.5 p-6">
+          <h3 class="text-lg font-semibold leading-none tracking-tight">Files</h3>
+          <p class="text-sm text-muted-foreground">Access your media library through different interfaces</p>
+        </div>
+        <div class="p-6 pt-0">
+          <div class="grid gap-3">
+            <div class="p-3 rounded-lg border border-border bg-muted/50 hover:bg-muted transition-colors">
+              <div class="flex items-center justify-between">
+                <div class="flex items-center gap-3">
+                  <div class="p-2 rounded-lg bg-blue-500/10 text-blue-600 dark:text-blue-400">
+                    <i data-lucide="monitor" class="icon"></i>
+                  </div>
+                  <div>
+                    <h4 class="font-medium text-sm">HTML File Browser</h4>
+                    <p class="text-xs text-muted-foreground">Interactive web interface</p>
+                  </div>
+                </div>
+                <a href="${this.baseURL}/html" class="btn btn-outline btn-sm">
+                  <i data-lucide="external-link" class="icon mr-2"></i>
+                  Open
+                </a>
+              </div>
+            </div>
+            <div class="p-3 rounded-lg border border-border bg-muted/50 hover:bg-muted transition-colors">
+              <div class="flex items-center justify-between">
+                <div class="flex items-center gap-3">
+                  <div class="p-2 rounded-lg bg-green-500/10 text-green-600 dark:text-green-400">
+                    <i data-lucide="server" class="icon"></i>
+                  </div>
+                  <div>
+                    <h4 class="font-medium text-sm">WebDAV Standard</h4>
+                    <p class="text-xs text-muted-foreground font-mono">${this.baseURL}/dav</p>
+                  </div>
+                </div>
+                <button id="copy-dav-btn" onclick="copyToClipboard('${this.escapeAttr(this.baseURL)}/dav', 'copy-dav-btn')" class="btn btn-outline btn-sm">
+                  <i data-lucide="copy" class="icon mr-2"></i>
+                  Copy
+                </button>
+              </div>
+            </div>
+            <div class="p-3 rounded-lg border border-border bg-muted/50 hover:bg-muted transition-colors">
+              <div class="flex items-center justify-between">
+                <div class="flex items-center gap-3">
+                  <div class="p-2 rounded-lg bg-purple-500/10 text-purple-600 dark:text-purple-400">
+                    <i data-lucide="tv" class="icon"></i>
+                  </div>
+                  <div>
+                    <h4 class="font-medium text-sm">WebDAV for Infuse</h4>
+                    <p class="text-xs text-muted-foreground font-mono">${this.baseURL}/infuse</p>
+                  </div>
+                </div>
+                <button id="copy-infuse-btn" onclick="copyToClipboard('${this.escapeAttr(this.baseURL)}/infuse', 'copy-infuse-btn')" class="btn btn-outline btn-sm">
+                  <i data-lucide="copy" class="icon mr-2"></i>
+                  Copy
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    `;
+  }
+
+  private generateConfigurationBlock(): string {
+    const hasToken = !!this.env.RD_TOKEN;
+    const hasDB = !!this.env.DB;
+    
+    return `
+      <!-- Configuration Block -->
+      <div class="card">
+        <div class="flex flex-col space-y-1.5 p-6">
+          <h3 class="text-lg font-semibold leading-none tracking-tight">Configuration</h3>
+          <p class="text-sm text-muted-foreground">Server configuration and environment details</p>
+        </div>
+        <div class="p-6 pt-0">
+          <dl class="grid gap-3">
+            <div class="flex justify-between">
+              <dt class="text-sm text-muted-foreground">Base URL:</dt>
+              <dd class="text-sm font-medium">${this.escapeHtml(this.baseURL)}</dd>
+            </div>
+            <div class="flex justify-between">
+              <dt class="text-sm text-muted-foreground">RD Token:</dt>
+              <dd class="text-sm font-medium">
+                <span class="inline-flex items-center rounded-full ${hasToken ? 'bg-green-100 dark:bg-green-900/20 text-green-700 dark:text-green-400' : 'bg-red-100 dark:bg-red-900/20 text-red-700 dark:text-red-400'} px-2 py-1 text-xs font-medium">
+                  ${hasToken ? '✓ Configured' : '✗ Missing'}
+                </span>
+              </dd>
+            </div>
+            <div class="flex justify-between">
+              <dt class="text-sm text-muted-foreground">Database:</dt>
+              <dd class="text-sm font-medium">
+                <span class="inline-flex items-center rounded-full ${hasDB ? 'bg-green-100 dark:bg-green-900/20 text-green-700 dark:text-green-400' : 'bg-red-100 dark:bg-red-900/20 text-red-700 dark:text-red-400'} px-2 py-1 text-xs font-medium">
+                  ${hasDB ? '✓ Available' : '✗ Not configured'}
+                </span>
+              </dd>
+            </div>
+            <div class="flex justify-between">
+              <dt class="text-sm text-muted-foreground">Version:</dt>
+              <dd class="text-sm font-medium">Serverless v1.0</dd>
+            </div>
+          </dl>
+        </div>
+      </div>
+    `;
+  }
+
+  private generateRealDebridBlock(userInfo: {user: any; traffic: any} | null): string {
+    if (!userInfo) {
+      return `
+        <!-- Real Debrid Account Block -->
+        <div class="card">
+          <div class="flex flex-col space-y-1.5 p-6">
+            <h3 class="text-lg font-semibold leading-none tracking-tight">Real Debrid Account</h3>
+            <p class="text-sm text-muted-foreground">Unable to fetch account information</p>
+          </div>
+        </div>
+      `;
+    }
+
+    const { user, traffic } = userInfo;
+    const points = this.formatPoints(user.points);
+    const daysRemaining = this.calculateDaysRemaining(user.expiration);
+    const totalTrafficBytes = this.calculateTotalTrafficServed(traffic);
+    const trafficGB = this.formatTrafficServed(totalTrafficBytes);
+    
+    return `
+      <!-- Real Debrid Account Block -->
+      <div class="card">
+        <div class="flex flex-col space-y-1.5 p-6">
+          <h3 class="text-lg font-semibold leading-none tracking-tight">Real Debrid Account</h3>
+          <p class="text-sm text-muted-foreground">Connected account information</p>
+        </div>
+        <div class="p-6 pt-0">
+          <dl class="grid gap-3">
+            <div class="flex justify-between">
+              <dt class="text-sm text-muted-foreground">Username:</dt>
+              <dd class="text-sm font-medium">${this.escapeHtml(user.username)}</dd>
+            </div>
+            <div class="flex justify-between">
+              <dt class="text-sm text-muted-foreground">Points:</dt>
+              <dd class="text-sm font-medium">${points}</dd>
+            </div>
+            <div class="flex justify-between">
+              <dt class="text-sm text-muted-foreground">Traffic Served:</dt>
+              <dd class="text-sm font-medium">${trafficGB} GB</dd>
+            </div>
+            <div class="flex justify-between">
+              <dt class="text-sm text-muted-foreground">Days Remaining:</dt>
+              <dd class="text-sm font-medium">
+                <span class="inline-flex items-center rounded-full ${daysRemaining > 30 ? 'bg-green-100 dark:bg-green-900/20 text-green-700 dark:text-green-400' : daysRemaining > 7 ? 'bg-yellow-100 dark:bg-yellow-900/20 text-yellow-700 dark:text-yellow-400' : 'bg-red-100 dark:bg-red-900/20 text-red-700 dark:text-red-400'} px-2 py-1 text-xs font-medium">
+                  ${daysRemaining} days
+                </span>
+              </dd>
+            </div>
+            <div class="flex justify-between">
+              <dt class="text-sm text-muted-foreground">Premium:</dt>
+              <dd class="text-sm font-medium">
+                <span class="inline-flex items-center rounded-full ${user.premium ? 'bg-green-100 dark:bg-green-900/20 text-green-700 dark:text-green-400' : 'bg-gray-100 dark:bg-gray-900/20 text-gray-700 dark:text-gray-400'} px-2 py-1 text-xs font-medium">
+                  ${user.premium ? '✓ Active' : 'Inactive'}
+                </span>
+              </dd>
+            </div>
+          </dl>
+        </div>
+      </div>
+    `;
+  }
+
+  // Helper methods for formatting data
+  private formatPoints(points: number): string {
+    return points.toLocaleString();
+  }
+
+  private calculateDaysRemaining(expiration: string): number {
+    const expirationDate = new Date(expiration);
+    const today = new Date();
+    const diffTime = expirationDate.getTime() - today.getTime();
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    return Math.max(0, diffDays);
+  }
+
+  private calculateTotalTrafficServed(traffic: any): number {
+    // Sum up all traffic from the traffic object
+    let total = 0;
+    if (traffic && typeof traffic === 'object') {
+      for (const [date, bytes] of Object.entries(traffic)) {
+        if (typeof bytes === 'number') {
+          total += bytes;
+        }
+      }
+    }
+    return total;
+  }
+
+  private formatTrafficServed(bytes: number): string {
+    const gb = bytes / (1024 * 1024 * 1024);
+    return gb.toFixed(2);
   }
 }

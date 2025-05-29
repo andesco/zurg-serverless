@@ -16,8 +16,9 @@ dist/
 .env.production.local
 .dev.vars
 
-# Local wrangler config (contains account-specific KV IDs)
-wrangler.local.toml
+# SECURITY: Prevent accidental token leaks
+# Always check these files before committing!
+.wrangler.toml
 
 # Logs
 logs
@@ -51,3 +52,6 @@ worker.js.map
 
 # TypeScript
 *.tsbuildinfo
+
+# Development and testing tools (local only)
+dev-tools/

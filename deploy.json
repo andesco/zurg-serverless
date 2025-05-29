@@ -9,10 +9,6 @@
       "description": "Real-Debrid API token (get from https://real-debrid.com/apitoken)",
       "required": true
     },
-    "RD_UNRESTRICT_IP": {
-      "description": "Fixed IP address for unrestrict calls (prevents account bans from IP conflicts)",
-      "required": false
-    },
     "STRM_TOKEN": {
       "description": "Optional token for STRM file protection",
       "required": false

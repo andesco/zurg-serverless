@@ -1,52 +1,115 @@
-import { Env } from './types';
+import { Env, RealDebridUser, RealDebridTrafficInfo } from './types';
 import { StorageManager } from './storage';
 import { WebDAVGenerator } from './webdav';
 import { HTMLBrowser } from './html-browser';
 import { maybeRefreshTorrents } from './handlers';
 import { handleWebDAVRequest, handleWebDAVGET } from './webdav-handlers';
 import { handleSTRMDownload } from './strm-handler';
+import { RealDebridClient } from './realdebrid';
+import { formatPoints, calculateDaysRemaining, calculateTotalTrafficServed, formatTrafficServed } from './utils';
+
+function checkBasicAuth(request: Request, env: Env): Response | null {
+  // If no USERNAME or PASSWORD is configured, skip authentication
+  if (!env.USERNAME || !env.PASSWORD) {
+    return null;
+  }
+
+  const authHeader = request.headers.get('Authorization');
+  
+  if (!authHeader || !authHeader.startsWith('Basic ')) {
+    return new Response('Authentication required', {
+      status: 401,
+      headers: {
+        'WWW-Authenticate': 'Basic realm="Zurg Serverless"',
+        'Content-Type': 'text/plain'
+      }
+    });
+  }
+
+  try {
+    // Decode the base64 credentials
+    const base64Credentials = authHeader.substring(6); // Remove 'Basic ' prefix
+    const credentials = atob(base64Credentials);
+    const [username, password] = credentials.split(':');
+
+    // Check credentials
+    if (username !== env.USERNAME || password !== env.PASSWORD) {
+      return new Response('Invalid credentials', {
+        status: 401,
+        headers: {
+          'WWW-Authenticate': 'Basic realm="Zurg Serverless"',
+          'Content-Type': 'text/plain'
+        }
+      });
+    }
+
+    // Authentication successful
+    return null;
+  } catch (error) {
+    console.error('Authentication error:', error);
+    return new Response('Authentication failed', {
+      status: 401,
+      headers: {
+        'WWW-Authenticate': 'Basic realm="Zurg Serverless"',
+        'Content-Type': 'text/plain'
+      }
+    });
+  }
+}
+
+async function generateStatusPage(env: Env, request: Request): Promise<string> {
+  console.log('=== GENERATING STATUS PAGE ===');
+  
+  // Get user info for Real Debrid Account block
+  let userInfo = null;
+  if (env.RD_TOKEN) {
+    try {
+      const rd = new RealDebridClient(env);
+      const [user, traffic] = await Promise.all([
+        rd.getUserInfo(),
+        rd.getTrafficInfo()
+      ]);
+      userInfo = { user, traffic };
+    } catch (error) {
+      console.error('Failed to fetch RD user/traffic info:', error);
+    }
+  }
+
+  // Use HTMLBrowser to generate the home page with the same styling
+  const htmlBrowser = new HTMLBrowser(env, request);
+  return await htmlBrowser.generateHomePage(userInfo);
+}
 
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
     console.log('=== WORKER STARTED ===');
     try {
+      // Check basic authentication first
+      const authResponse = checkBasicAuth(request, env);
+      if (authResponse) {
+        return authResponse;
+      }
+
       const url = new URL(request.url);
       const pathSegments = url.pathname.split('/').filter(Boolean);
       
       console.log(`Request: ${request.method} ${url.pathname}`);
       console.log('Path segments:', pathSegments);
       console.log('Environment check - RD_TOKEN:', !!env.RD_TOKEN);
-      console.log('Environment check - KV:', !!env.KV);
+      console.log('Environment check - DB:', !!env.DB);
       
       if (pathSegments.length === 0) {
         console.log('=== ROOT ENDPOINT HANDLER ===');
         try {
-          console.log('Building status text...');
-          const statusText = [
-            'Zurg Serverless - Real-Debrid WebDAV Server',
-            '',
-            'Status: OK',
-            'Endpoints:',
-            '- /dav/ (WebDAV)',
-            '- /infuse/ (Infuse WebDAV)',
-            '- /html/ (File Browser)',
-            '- /strm/{downloadCode} (Streaming)',
-            '',
-            'Environment Check:',
-            `- RD_TOKEN: ${env.RD_TOKEN ? 'SET' : 'MISSING'}`,
-            `- KV: ${env.KV ? 'CONFIGURED' : 'MISSING'}`,
-          ].join('\n');
+          console.log('Building status page...');
           
-          console.log('Status text built, creating response...');
-          console.log('Status text length:', statusText.length);
+          // Generate HTML status page instead of text
+          const html = await generateStatusPage(env, request);
           
-          const response = new Response(statusText, { 
+          return new Response(html, { 
             status: 200,
-            headers: { 'Content-Type': 'text/plain; charset=utf-8' }
+            headers: { 'Content-Type': 'text/html; charset=utf-8' }
           });
-          
-          console.log('Response created successfully');
-          return response;
         } catch (error) {
           console.error('Error in root handler:', error);
           return new Response(`Error: ${error}`, { 
@@ -77,10 +140,51 @@ export default {
         });
       }
 
-      if (!env.KV) {
-        return new Response('Configuration Error: KV namespace not configured', { 
-          status: 500,
-          headers: { 'Content-Type': 'text/plain' }
+      if (!env.DB) {
+        return new Response(`
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Zurg Serverless - Setup Required</title>
+  <style>
+    body { font-family: system-ui, sans-serif; max-width: 600px; margin: 50px auto; padding: 20px; }
+    .container { text-align: center; }
+    .error { background: #fee; border: 1px solid #fcc; padding: 20px; border-radius: 8px; margin: 20px 0; }
+    .setup { background: #efe; border: 1px solid #cfc; padding: 20px; border-radius: 8px; margin: 20px 0; }
+    code { background: #f5f5f5; padding: 2px 6px; border-radius: 4px; font-family: monospace; }
+    pre { background: #f5f5f5; padding: 15px; border-radius: 4px; text-align: left; overflow-x: auto; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>🏗️ Zurg Serverless</h1>
+    <div class="error">
+      <h2>⚠️ Database Not Configured</h2>
+      <p>D1 database binding is not available. The database needs to be created and configured.</p>
+    </div>
+    
+    <div class="setup">
+      <h2>🚀 Quick Setup</h2>
+      <p>Stop the current dev server and run:</p>
+      <pre><code>npm run dev</code></pre>
+      <p>This will automatically create and configure your D1 database.</p>
+    </div>
+    
+    <div class="setup">
+      <h2>🔧 Manual Setup</h2>
+      <p>Or create the database manually:</p>
+      <pre><code>npm run setup-d1</code></pre>
+      <p>Then restart with <code>wrangler dev</code></p>
+    </div>
+    
+    <div style="margin-top: 40px; color: #666; font-size: 14px;">
+      <p>For more information, see the project README.</p>
+    </div>
+  </div>
+</body>
+</html>`, { 
+          status: 503,
+          headers: { 'Content-Type': 'text/html; charset=utf-8' }
         });
       }
 
@@ -152,7 +256,7 @@ async function handleHTMLRequest(pathSegments: string[], storage: StorageManager
   if (htmlPath.length === 0) {
     // Root HTML page - show directories
     const directories = await storage.getAllDirectories();
-    const html = htmlBrowser.generateRootPage(directories);
+    const html = await htmlBrowser.generateRootPage(directories);
     return new Response(html, {
       status: 200,
       headers: { 'Content-Type': 'text/html; charset=utf-8' }
