@@ -57,8 +57,8 @@ wrangler secret put RD_TOKEN
 | Interface | URL | Purpose |
 |-----------|-----|---------|
 | **HTML Browser** | `https://your-worker.workers.dev/` | web interface |
-| **WebDAV ** | `https://your-worker.workers.dev/dav` | standard endpoint|
-| **WebDAV for Infuse** | `https://your-worker.workers.dev/infuse` | optimized for Infuse |
+| **WebDAV** | `https://your-worker.workers.dev/dav` | standard endpoint|
+| **WebDAV&nbsp;for&nbsp;Infuse** | `https://your-worker.workers.dev/infuse` | optimized endpoint |
 
 ## ⚙️ Configuration
 

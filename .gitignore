@@ -18,6 +18,7 @@ dist/
 
 # SECURITY: Prevent accidental token leaks
 .wrangler.toml
+wrangler.local.toml
 
 # Logs
 logs
