@@ -227,4 +227,71 @@ export class StorageManager {
     
     return directoryMap;
   }
+
+  // Smart caching methods for torrent details
+  async getCachedTorrentIds(): Promise<Set<string> | null> {
+    const result = await this.db
+      .prepare('SELECT torrent_ids FROM cache_metadata ORDER BY id DESC LIMIT 1')
+      .first();
+    
+    if (!result?.torrent_ids) return null;
+    
+    try {
+      const ids = JSON.parse(result.torrent_ids as string);
+      return new Set(ids);
+    } catch {
+      return null;
+    }
+  }
+
+  async saveTorrentIds(torrentIds: Set<string>): Promise<void> {
+    const idsArray = Array.from(torrentIds).sort();
+    await this.db
+      .prepare('UPDATE cache_metadata SET torrent_ids = ? WHERE id = 1')
+      .bind(JSON.stringify(idsArray))
+      .run();
+  }
+
+  async getCachedTorrentDetails(torrentId: string): Promise<{ selectedFiles: any; downloadedIDs: string[] } | null> {
+    const result = await this.db
+      .prepare('SELECT selected_files, downloaded_ids FROM torrents WHERE id = ? AND selected_files != "{}"')
+      .bind(torrentId)
+      .first();
+    
+    if (!result) return null;
+    
+    try {
+      return {
+        selectedFiles: JSON.parse(result.selected_files as string),
+        downloadedIDs: JSON.parse(result.downloaded_ids as string)
+      };
+    } catch {
+      return null;
+    }
+  }
+
+  async cacheTorrentDetails(torrentId: string, torrent: Torrent, expiresAt: number | null): Promise<void> {
+    // Update the existing torrent record with detailed info
+    await this.db
+      .prepare(`
+        UPDATE torrents 
+        SET selected_files = ?, downloaded_ids = ?, updated_at = strftime('%s', 'now')
+        WHERE id = ?
+      `)
+      .bind(
+        JSON.stringify(torrent.selectedFiles),
+        JSON.stringify(torrent.downloadedIDs),
+        torrentId
+      )
+      .run();
+  }
+
+  // Called when STRM generation fails - expire cached details for this torrent
+  async expireTorrentDetails(torrentId: string): Promise<void> {
+    console.log(`🔄 Expiring cached details for torrent ${torrentId} due to STRM failure`);
+    await this.db
+      .prepare('UPDATE torrents SET selected_files = "{}", downloaded_ids = "[]" WHERE id = ?')
+      .bind(torrentId)
+      .run();
+  }
 }
