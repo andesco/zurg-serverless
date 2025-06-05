@@ -227,4 +227,47 @@ export class StorageManager {
     
     return directoryMap;
   }
+
+  // STRM-related methods
+  async getSTRMMapping(strmCode: string): Promise<any | null> {
+    const result = await this.db
+      .prepare('SELECT directory, torrent_id, filename FROM strm_mappings WHERE strm_code = ?')
+      .bind(strmCode)
+      .first();
+    
+    return result ? {
+      directory: result.directory,
+      torrentId: result.torrent_id,
+      filename: result.filename
+    } : null;
+  }
+
+  async getTorrentById(torrentId: string): Promise<Torrent | null> {
+    const result = await this.db
+      .prepare('SELECT * FROM torrents WHERE id = ?')
+      .bind(torrentId)
+      .first();
+    
+    if (!result) return null;
+    
+    return {
+      id: result.id,
+      name: result.name,
+      originalName: result.original_name,
+      hash: result.hash,
+      added: result.added,
+      ended: result.ended,
+      selectedFiles: JSON.parse(result.selected_files as string),
+      downloadedIds: JSON.parse(result.downloaded_ids as string),
+      state: result.state as 'ok_torrent' | 'broken_torrent',
+      totalSize: result.total_size
+    } as Torrent;
+  }
+
+  async updateSTRMCache(strmCode: string, downloadUrl: string, expiresAt: number): Promise<void> {
+    await this.db
+      .prepare('INSERT OR REPLACE INTO strm_cache (strm_code, download_url, expires_at, created_at) VALUES (?, ?, ?, ?)')
+      .bind(strmCode, downloadUrl, expiresAt, Math.floor(Date.now() / 1000))
+      .run();
+  }
 }
