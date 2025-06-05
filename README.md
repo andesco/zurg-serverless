@@ -1,174 +1,140 @@
 # Zurg Serverless
 
-A modern, serverless Real Debrid WebDAV server with modern HTML browser (work in progress) and .STRM file-based streaming, running as a Cloudflare Worker.
+A modern, serverless Real-Debrid WebDAV server with HTML browser interface and .STRM file-based streaming, running on Cloudflare Workers.
+
+[![Deploy to Cloudflare Workers](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/debridmediamanager/zurg-serverless)
+
+## ✨ Recent Improvements
+
+- 🚀 **Deploy to Cloudflare button** - One-click deployment
+- ⚡ **Rate-limited Real-Debrid API** - Prevents 429 errors and API overload
+- 🔒 **WebDAV-safe security headers** - Enhanced security without breaking media players  
+- 🎥 **Smart STRM fallback** - Serves error video when media files are unavailable
+- 🛠️ **Dual configuration** - Supports both Deploy button and personal development
 
 ## Features
 
 ### 🎯 **Dual Interface**
-- **HTML browser**: [shadcn/ui](https://github.com/shadcn-ui/ui) interface for browsing a media library
-- **WebDAV endpoints**: WebDAV enpoint for use with media players, with specific support for Infuse
+- **HTML browser**: Modern web interface for browsing your media library
+- **WebDAV endpoints**: Compatible with media players, optimized for Infuse
 
 ### ⚡ **Smart .STRM Streaming System**
-- **.STRM files only**
-  - each `.strm` file contains a short link: `/strm/ABCD1234WXYZ5678`)
-  - short link remains consistent but redirect to up-to-date download links
-  - download links are created or updated on-demand
-  - download links are maintained in a D1 database
-  - 7-Day caching of download links to reduce API calls
-  
+- **STRM files only** - Each contains a short link (e.g., `/strm/ABCD1234WXYZ5678`)
+- **Consistent URLs** - Links remain stable while redirecting to fresh Real-Debrid URLs
+- **Intelligent caching** - 7-day URL caching with automatic regeneration
+- **Error fallback** - Custom error video when media is unavailable
+
 ### 🌐 **Serverless Architecture**
-- **Cloudflare Worker** serverless function
-- **Cloudflare D1** database
+- **Cloudflare Workers** - Global edge computing
+- **Cloudflare D1** - Distributed SQLite database
+- **Rate limiting** - Respects Real-Debrid API limits
+- **Security headers** - Safe for WebDAV clients
 
-## 🚀 Quick Setup
+## 🚀 Quick Deploy
 
-### Prerequisites
-- Node.js v20+ (required for wrangler)
-- Cloudflare account
+### One-Click Deployment
+[![Deploy to Cloudflare Workers](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/debridmediamanager/zurg-serverless)
 
-### First Deployments:
+You'll be prompted for:
+- **RD_TOKEN** (required) - Your Real-Debrid API token
+- **USERNAME/PASSWORD** (optional) - Basic authentication
+- **Custom domain** (optional) - Your own domain
 
-```zsh
-git clone https://github.com/andesco/zurg-serverless
+### Manual Setup
+
+```bash
+git clone https://github.com/debridmediamanager/zurg-serverless
 cd zurg-serverless
 npm install
 wrangler login
-```
-
-**Option 1: Automatic Setup (Recommended)**
-```zsh
 npm run dev
 ```
-- detect your Cloudflare account
-- create required D1 database, initialize database schema:
-  ```wrangler d1 create zurg-serverless-db```
-  ```wrangler d1 execute zurg-serverless-db --file schema.sql```
-- update configuration
-- start dev server
 
-**Option 2: Manual Approach**
-
-```zsh
-wrangler dev
-```
-
-This manual approach (work in progress) has further instructions.
-
-### Production Deployment:
-
-```zsh
+For production deployment:
+```bash
 npm run deploy
 wrangler secret put RD_TOKEN
 ```
 
+## 🎯 Usage
 
-
-
----
-
-
-</details>
-
-
-
-## Usage
-
-**HTML Browser**:
-```https://worker.user.workers.dev/```
-
-**WebDAV standard**:
-```https://worker.user.workers.dev/dav```
-
-**Infuse:**
-```https://worker.user.workers.dev/infuse```
-
+| Interface | URL | Purpose |
+|-----------|-----|---------|
+| **HTML Browser** | `https://your-worker.workers.dev/` | Web interface |
+| **WebDAV (Standard)** | `https://your-worker.workers.dev/dav` | Standard WebDAV |
+| **WebDAV (Infuse)** | `https://your-worker.workers.dev/infuse` | Optimized for Infuse |
 
 ## ⚙️ Configuration
 
+### Required Secrets
+```bash
+wrangler secret put RD_TOKEN        # Your Real-Debrid API token
+wrangler secret put USERNAME        # Optional: Basic auth username  
+wrangler secret put PASSWORD        # Optional: Basic auth password
+```
 
-### 🔐 Environment Variables
-
-You can save these as plaintext environment variables in the Cloudflare Worker’s Settings, or use:
-
-```wrangler secret put RD_TOKEN```
-
-| Secret | Required | Description |
-|--------|----------|-------------|
-| `RD_TOKEN` | yes | Real-Debrid API token |
-| `STRM_TOKEN` |   | optional secondary token for STRM files |
-
-
+### Environment Variables
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `REFRESH_INTERVAL_SECONDS` | `15` | How often to sync torrents |
-| `TORRENTS_PAGE_SIZE` | `1000` | Torrents per Real-Debrid API call |
-| `API_TIMEOUT_SECONDS` | `30` | Request timeout for Real-Debrid API |
+| `REFRESH_INTERVAL_SECONDS` | `15` | Torrent sync frequency |
+| `TORRENTS_PAGE_SIZE` | `1000` | Real-Debrid API page size |
+| `API_TIMEOUT_SECONDS` | `30` | Request timeout |
 | `HIDE_BROKEN_TORRENTS` | `true` | Hide incomplete torrents |
 
-## LLM  discovery
+## 🛠️ Development
 
-### **WebDAV**
-- `PROPFIND /dav/` standard WebDAV (includes root directory)
-- `GET /dav/{path}` download STRM files
-- `OPTIONS /dav/` WebDAV capabilities
+### Personal Development Setup
+For your own development and production deployments:
 
-### **Streaming**
-- `GET /strm/{16-char-code}` streaming URLs (redirect to Real Debrid cache)
+```bash
+# Development
+npm run dev                 # Local development  
+npm run deploy-staging      # Deploy to staging
+npm run deploy              # Deploy to production
 
-### **Status**
-- `GET /` - Worker status and quick access links
+# Template testing  
+npm run dev-template        # Test Deploy button template
+```
 
+The project uses dual configuration:
+- `wrangler.toml` - Clean template for Deploy button
+- `wrangler.local.toml` - Personal development/production config
 
-
-## 📁 Project Structure
-
+### Project Structure
 ```
 src/
-├── worker.ts           # 🚀 Main Cloudflare Worker entry point
-├── types.ts            # 📝 TypeScript interfaces
-├── realdebrid.ts       # 🔗 Real Debrid API client
-├── storage.ts          # 💾 D1 storage operations
-├── strm-cache.ts       # ⚡ Short URL caching system
-├── html-browser.ts     # 🎨 Modern HTML interface
-├── webdav.ts           # 🌐 WebDAV XML generation
-├── webdav-handlers.ts  # 🔧 WebDAV request processing
-├── strm-handler.ts     # 🎥 Streaming URL resolution
-├── handlers.ts         # 🔄 Torrent sync logic
-└── utils.ts            # 🛠️ Helper functions
+├── worker.ts           # Main Worker entry point
+├── realdebrid.ts       # Rate-limited Real-Debrid client  
+├── storage.ts          # D1 database operations
+├── strm-handler.ts     # STRM URL resolution with fallback
+├── security.ts         # WebDAV-safe security headers
+├── webdav-handlers.ts  # WebDAV protocol handling
+├── html-browser.ts     # HTML interface
+└── types.ts            # TypeScript definitions
 ```
 
-## 🎛️ Rate Limits & Performance
+## 🔧 Performance & Reliability
 
-### Real-Debrid API Limits
-- **General API**: 250 requests/minute
-- **Torrents API**: 75 requests/minute
-- **Unrestrict API**: ~1000 requests/hour
-
-### Worker Limits (Free Tier)
-- **Requests**: 100,000/day
-- **CPU Time**: 10ms per request
-- **KV Operations**: 1,000/day
-
-### Optimization Features
-- **Intelligent Caching** - 7-day STRM codes
-- **Exponential Backoff** - Automatic retry with rate limit respect
-- **Batched Operations** - Efficient D1 usage patterns
+- **Rate limiting** - 1-second intervals prevent Real-Debrid API errors
+- **Intelligent fallback** - Automatic URL regeneration on cache miss  
+- **Error handling** - Custom error video for unavailable media
+- **Security headers** - Applied only to HTML endpoints, preserving WebDAV compatibility
+- **Global caching** - Cloudflare's edge network for low latency
 
 ## 🐛 Troubleshooting
 
-#### RD_TOKEN is undefined
+**Empty directory listings:**
+- Verify Real-Debrid token is valid: `wrangler secret list`
+- Check logs: `wrangler tail`
 
-```zsh
-wrangler secret list
-wrangler secret put RD_TOKEN
-```
+**WebDAV connection issues:**
+- Ensure credentials are set if using authentication
+- Try both `/dav` and `/infuse` endpoints
 
-#### Invalid configuration
-- check `wrangler.toml` has valid D1 namespace IDs (not placeholder text)
-- ensure sensitive data uses `wrangler secret put`, not `[vars]`
-- verify `binding = "D1"` matches code expectations
+**Deploy button issues:**
+- Check that your repository is public
+- Verify `wrangler.toml` has correct structure
 
-### **Empty Directory Listings**
-- check Real-Debrid token: valid and active?
-- check logs: `wrangler tail` for error details
+---
 
+Built with ❤️ for the Zurg community
