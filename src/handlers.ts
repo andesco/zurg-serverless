@@ -95,12 +95,13 @@ async function refreshTorrentsLightweight(env: Env, storage: StorageManager): Pr
 async function fetchNewTorrentDetails(newTorrentIds: string[], env: Env, storage: StorageManager): Promise<void> {
   if (newTorrentIds.length === 0) return;
   
-  // Respect the 50 subrequest limit - we've already used 1 for the list
-  const maxNewTorrents = Math.min(newTorrentIds.length, 45);
+  // Conservative approach: only fetch a few new torrents per request to stay well under limits
+  const maxNewTorrents = Math.min(newTorrentIds.length, 10); // Much more conservative
   const torrentsToFetch = newTorrentIds.slice(0, maxNewTorrents);
   
   if (maxNewTorrents < newTorrentIds.length) {
-    console.log(`⚠️ Limited to fetching ${maxNewTorrents} of ${newTorrentIds.length} new torrents due to worker limits`);
+    console.log(`⚠️ Limited to fetching ${maxNewTorrents} of ${newTorrentIds.length} new torrents to stay within limits`);
+    console.log(`📅 Remaining ${newTorrentIds.length - maxNewTorrents} will be fetched on subsequent requests`);
   }
   
   const rd = new RealDebridClient(env);
