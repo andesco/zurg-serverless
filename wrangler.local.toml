@@ -32,9 +32,9 @@ routes = [
 
 [env.production.vars]
 BASE_URL = "https://serverless.andrewe.link"
-REFRESH_INTERVAL_SECONDS = "30"
+REFRESH_INTERVAL_SECONDS = "60"
 API_TIMEOUT_SECONDS = "45"
-TORRENTS_PAGE_SIZE = "500"
+TORRENTS_PAGE_SIZE = "100"
 HIDE_BROKEN_TORRENTS = "true"
 
 [[env.production.d1_databases]]
