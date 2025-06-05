@@ -294,4 +294,49 @@ export class StorageManager {
       .bind(torrentId)
       .run();
   }
+
+  // Priority-based cache management methods
+  async getOldestCachedTorrents(limit: number, excludeIds: string[]): Promise<string[]> {
+    const excludeList = excludeIds.length > 0 ? `AND id NOT IN (${excludeIds.map(() => '?').join(',')})` : '';
+    const query = `
+      SELECT id FROM torrents 
+      WHERE selected_files != "{}" AND selected_files != ""
+      ${excludeList}
+      ORDER BY updated_at ASC 
+      LIMIT ?
+    `;
+    
+    const result = await this.db
+      .prepare(query)
+      .bind(...excludeIds, limit)
+      .all();
+    
+    return result.results.map((row: any) => row.id);
+  }
+
+  async getUncachedTorrents(limit: number, excludeIds: string[]): Promise<string[]> {
+    const excludeList = excludeIds.length > 0 ? `AND id NOT IN (${excludeIds.map(() => '?').join(',')})` : '';
+    const query = `
+      SELECT id FROM torrents 
+      WHERE (selected_files = "{}" OR selected_files = "" OR selected_files IS NULL)
+      ${excludeList}
+      ORDER BY added DESC 
+      LIMIT ?
+    `;
+    
+    const result = await this.db
+      .prepare(query)
+      .bind(...excludeIds, limit)
+      .all();
+    
+    return result.results.map((row: any) => row.id);
+  }
+
+  // Method for STRM handler to request priority caching
+  async requestSTRMPriority(torrentId: string): Promise<void> {
+    // Mark this torrent for immediate priority on next worker call
+    // For now, just ensure it gets refreshed by clearing cache
+    await this.expireTorrentDetails(torrentId);
+    console.log(`🔥 STRM priority requested for torrent ${torrentId}`);
+  }
 }

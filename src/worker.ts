@@ -2,7 +2,7 @@ import { Env, RealDebridUser, RealDebridTrafficInfo } from './types';
 import { StorageManager } from './storage';
 import { WebDAVGenerator } from './webdav';
 import { HTMLBrowser } from './html-browser';
-import { maybeRefreshTorrents } from './handlers';
+import { maybeRefreshTorrents, handleSTRMPriorityRequest } from './handlers';
 import { handleWebDAVRequest, handleWebDAVGET } from './webdav-handlers';
 import { handleSTRMDownload } from './strm-handler';
 import { RealDebridClient } from './realdebrid';
