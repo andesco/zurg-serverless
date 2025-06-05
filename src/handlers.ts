@@ -70,7 +70,6 @@ async function refreshTorrents(env: Env, storage: StorageManager): Promise<void>
         break;
       }
     }
-    }
 
     await storage.setDirectoryMap(directoryMap);
     await storage.setCacheMetadata({
