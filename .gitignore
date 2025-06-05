@@ -58,3 +58,14 @@ dev-tools/
 # Add to .gitignore to keep personal config private
 wrangler.local.toml
 .dev.vars*
+# Personal development files
+wrangler.local.toml
+.dev.vars*
+
+# Don't commit these
+node_modules/
+.wrangler/
+
+# Embedded files (now in code as base64)
+not_found.mp4
+*.backup
