@@ -1,6 +1,7 @@
 # Personal development and production configuration
 # Use this for your own deployments: wrangler deploy --config wrangler.local.toml
 
+account_id = "0a15c5f9d39350baa992ff9f48efc1c8"
 name = "zurg-serverless-dev"
 main = "src/worker.ts"
 compatibility_date = "2024-12-01"
@@ -22,12 +23,11 @@ database_id = "c123b8ff-c4ba-4c6b-8878-e8f035026b8d"
 
 # Production environment - deploy with: wrangler deploy --config wrangler.local.toml --env production
 [env.production]
-name = "zurg-serverless-prod"
+name = "zurg-serverless"
 
 # Custom domain configuration
 routes = [
-  { pattern = "serverless.andrewe.link", custom_domain = true },
-  { pattern = "serverless.andrewe.link/*", custom_domain = true }
+  { pattern = "serverless.andrewe.link", custom_domain = true }
 ]
 
 [env.production.vars]
