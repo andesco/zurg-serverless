@@ -1,9 +1,9 @@
-import { Env, DirectoryMap } from './types';
+import { Env, DirectoryMap, Torrent } from './types';
 import { RealDebridClient } from './realdebrid';
 import { StorageManager } from './storage';
 import { convertToTorrent } from './utils';
 
-export async function maybeRefreshTorrents(env: Env, skipIfTooMany: boolean = false): Promise<void> {
+export async function maybeRefreshTorrents(env: Env): Promise<void> {
   console.log('=== maybeRefreshTorrents called ===');
   
   const storage = new StorageManager(env);
@@ -13,14 +13,15 @@ export async function maybeRefreshTorrents(env: Env, skipIfTooMany: boolean = fa
 
   if (!metadata || (now - metadata.lastRefresh) > refreshInterval) {
     console.log('Refreshing torrents from Real Debrid...');
-    await refreshTorrents(env, storage, skipIfTooMany);
+    await refreshTorrentsLightweight(env, storage);
   } else {
     console.log('Using cached torrent data');
   }
 }
 
-async function refreshTorrents(env: Env, storage: StorageManager, skipIfTooMany: boolean = false): Promise<void> {
-  console.log('=== Starting torrent refresh ===');
+// Fast refresh using only the torrent list API - no individual calls
+async function refreshTorrentsLightweight(env: Env, storage: StorageManager): Promise<void> {
+  console.log('=== Starting lightweight torrent refresh ===');
   const rd = new RealDebridClient(env);
   const pageSize = parseInt(env.TORRENTS_PAGE_SIZE || '1000');
   
@@ -29,59 +30,58 @@ async function refreshTorrents(env: Env, storage: StorageManager, skipIfTooMany:
     const rdTorrents = await rd.getTorrents(1, pageSize);
     console.log(`Received ${rdTorrents.length} torrents from Real Debrid`);
     
-    // Check if we have too many torrents for one request (50 subrequest limit)
-    const downloadedTorrents = rdTorrents.filter(t => t.status === 'downloaded' && t.progress === 100);
-    if (skipIfTooMany && downloadedTorrents.length > 45) {
-      console.log(`⚠️ Too many torrents (${downloadedTorrents.length}) for WebDAV request. Skipping refresh to avoid timeout.`);
-      console.log('Use the HTML interface or wait for automatic refresh to process all torrents.');
-      return;
-    }
+    // Filter to only downloaded torrents
+    const downloadedTorrents = rdTorrents.filter(t => 
+      t.status === 'downloaded' && t.progress === 100
+    );
+    console.log(`Found ${downloadedTorrents.length} downloaded torrents`);
     
+    // Build directory structure using just the list data - no individual API calls needed!
     const directoryMap: DirectoryMap = { __all__: {} };
-    let processedCount = 0;
     
-    for (const rdTorrent of rdTorrents) {
-      if (rdTorrent.status !== 'downloaded' || rdTorrent.progress !== 100) {
-        continue;
-      }
+    for (const rdTorrent of downloadedTorrents) {
+      // Create a lightweight torrent entry for directory listing
+      const torrent = {
+        id: rdTorrent.id,
+        name: rdTorrent.filename,
+        originalName: rdTorrent.filename,
+        hash: rdTorrent.hash,
+        added: rdTorrent.added,
+        ended: rdTorrent.ended,
+        selectedFiles: {}, // Will be populated only when needed for STRM
+        downloadedIDs: [],  // Will be populated only when needed for STRM  
+        state: 'ok_torrent' as const,
+        totalSize: rdTorrent.bytes
+      };
       
-      try {
-        const torrentInfo = await rd.getTorrentInfo(rdTorrent.id);
-        const torrent = convertToTorrent(torrentInfo);
-        
-        if (torrent) {
-          directoryMap.__all__[torrent.id] = torrent;
-          processedCount++;
-        }
-      } catch (torrentError) {
-        console.error(`Failed to process torrent ${rdTorrent.id}:`, torrentError);
-      }
+      directoryMap.__all__[torrent.id] = torrent;
     }
-
+    
+    console.log(`✅ Lightweight refresh complete: ${downloadedTorrents.length} torrents processed (only 1 API call!)`);
+    
+    // Save to database
     await storage.setDirectoryMap(directoryMap);
     await storage.setCacheMetadata({
       lastRefresh: Date.now(),
-      libraryChecksum: JSON.stringify(rdTorrents).length.toString(),
+      libraryChecksum: JSON.stringify(downloadedTorrents.map(t => t.id).sort()).length.toString(),
     });
     
-    console.log(`✅ Refresh complete: ${processedCount} torrents processed`);
   } catch (error) {
     console.error('❌ Failed to refresh torrents:', error);
-    
-    // More detailed error information
-    if (error instanceof Error) {
-      console.error('Error message:', error.message);
-      console.error('Error stack:', error.stack);
-    }
-    
-    // Check if it's a network/API error
-    if (error.message?.includes('RD API Error')) {
-      console.error('🔍 This appears to be a Real Debrid API error. Check:');
-      console.error('  1. Your RD_TOKEN is valid');
-      console.error('  2. Your Real Debrid account is active');
-      console.error('  3. Network connectivity');
-    }
-    
-    throw error; // Re-throw to bubble up
+    throw error;
+  }
+}
+
+// Fetch detailed torrent info only when needed (for STRM generation or file listing)
+export async function getTorrentDetails(torrentId: string, env: Env): Promise<Torrent | null> {
+  console.log(`Fetching detailed info for torrent ${torrentId}...`);
+  
+  try {
+    const rd = new RealDebridClient(env);
+    const torrentInfo = await rd.getTorrentInfo(torrentId);
+    return convertToTorrent(torrentInfo);
+  } catch (error) {
+    console.error(`Failed to fetch details for torrent ${torrentId}:`, error);
+    return null;
   }
 }
