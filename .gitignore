@@ -55,3 +55,6 @@ worker.js.map
 
 # Development and testing tools (local only)
 dev-tools/
+# Add to .gitignore to keep personal config private
+wrangler.local.toml
+.dev.vars*
