@@ -188,7 +188,9 @@ export default {
         });
       }
 
-      await maybeRefreshTorrents(env);
+      // For WebDAV requests, skip refresh if too many torrents to avoid timeout
+      const isWebDAV = mountType === 'dav' || mountType === 'infuse';
+      await maybeRefreshTorrents(env, isWebDAV);
       const storage = new StorageManager(env);
       const webdav = new WebDAVGenerator(env, request);
 

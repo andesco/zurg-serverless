@@ -3,7 +3,7 @@ import { RealDebridClient } from './realdebrid';
 import { StorageManager } from './storage';
 import { convertToTorrent } from './utils';
 
-export async function maybeRefreshTorrents(env: Env): Promise<void> {
+export async function maybeRefreshTorrents(env: Env, skipIfTooMany: boolean = false): Promise<void> {
   console.log('=== maybeRefreshTorrents called ===');
   
   const storage = new StorageManager(env);
@@ -13,13 +13,13 @@ export async function maybeRefreshTorrents(env: Env): Promise<void> {
 
   if (!metadata || (now - metadata.lastRefresh) > refreshInterval) {
     console.log('Refreshing torrents from Real Debrid...');
-    await refreshTorrents(env, storage);
+    await refreshTorrents(env, storage, skipIfTooMany);
   } else {
     console.log('Using cached torrent data');
   }
 }
 
-async function refreshTorrents(env: Env, storage: StorageManager): Promise<void> {
+async function refreshTorrents(env: Env, storage: StorageManager, skipIfTooMany: boolean = false): Promise<void> {
   console.log('=== Starting torrent refresh ===');
   const rd = new RealDebridClient(env);
   const pageSize = parseInt(env.TORRENTS_PAGE_SIZE || '1000');
@@ -28,6 +28,14 @@ async function refreshTorrents(env: Env, storage: StorageManager): Promise<void>
     console.log(`Fetching torrents from Real Debrid (page size: ${pageSize})...`);
     const rdTorrents = await rd.getTorrents(1, pageSize);
     console.log(`Received ${rdTorrents.length} torrents from Real Debrid`);
+    
+    // Check if we have too many torrents for one request (50 subrequest limit)
+    const downloadedTorrents = rdTorrents.filter(t => t.status === 'downloaded' && t.progress === 100);
+    if (skipIfTooMany && downloadedTorrents.length > 45) {
+      console.log(`⚠️ Too many torrents (${downloadedTorrents.length}) for WebDAV request. Skipping refresh to avoid timeout.`);
+      console.log('Use the HTML interface or wait for automatic refresh to process all torrents.');
+      return;
+    }
     
     const directoryMap: DirectoryMap = { __all__: {} };
     let processedCount = 0;
