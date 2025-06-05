@@ -17,7 +17,6 @@ dist/
 .dev.vars
 
 # SECURITY: Prevent accidental token leaks
-# Always check these files before committing!
 .wrangler.toml
 
 # Logs
@@ -53,19 +52,12 @@ worker.js.map
 # TypeScript
 *.tsbuildinfo
 
-# Development and testing tools (local only)
+# Development and Testing
 dev-tools/
-# Add to .gitignore to keep personal config private
 wrangler.local.toml
 .dev.vars*
-# Personal development files
-wrangler.local.toml
-.dev.vars*
-
-# Don't commit these
 node_modules/
 .wrangler/
 
-# Embedded files (now in code as base64)
-not_found.mp4
+# Other Files
 *.backup
