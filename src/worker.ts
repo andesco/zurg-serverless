@@ -7,6 +7,7 @@ import { handleWebDAVRequest, handleWebDAVGET } from './webdav-handlers';
 import { handleSTRMDownload } from './strm-handler';
 import { RealDebridClient } from './realdebrid';
 import { formatPoints, calculateDaysRemaining, calculateTotalTrafficServed, formatTrafficServed } from './utils';
+import { addWebDAVSafeSecurityHeaders } from './security';
 
 function checkBasicAuth(request: Request, env: Env): Response | null {
   // If no USERNAME or PASSWORD is configured, skip authentication
@@ -83,11 +84,14 @@ async function generateStatusPage(env: Env, request: Request): Promise<string> {
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
     console.log('=== WORKER STARTED ===');
+    let response: Response;
+    
     try {
       // Check basic authentication first
       const authResponse = checkBasicAuth(request, env);
       if (authResponse) {
-        return authResponse;
+        response = authResponse;
+        return addWebDAVSafeSecurityHeaders(response, request, env);
       }
 
       const url = new URL(request.url);
@@ -106,16 +110,18 @@ export default {
           // Generate HTML status page instead of text
           const html = await generateStatusPage(env, request);
           
-          return new Response(html, { 
+          response = new Response(html, { 
             status: 200,
             headers: { 'Content-Type': 'text/html; charset=utf-8' }
           });
+          return addWebDAVSafeSecurityHeaders(response, request, env);
         } catch (error) {
           console.error('Error in root handler:', error);
-          return new Response(`Error: ${error}`, { 
+          response = new Response(`Error: ${error}`, { 
             status: 500,
             headers: { 'Content-Type': 'text/plain' }
           });
+          return addWebDAVSafeSecurityHeaders(response, request, env);
         }
       }
 
@@ -124,20 +130,23 @@ export default {
         const strmCode = pathSegments[1];
         await maybeRefreshTorrents(env);
         const storage = new StorageManager(env);
-        return await handleSTRMDownload(strmCode, env, storage);
+        response = await handleSTRMDownload(strmCode, env, storage);
+        return addWebDAVSafeSecurityHeaders(response, request, env);
       }
 
       const mountType = pathSegments[0] as 'dav' | 'infuse' | 'html';
       
       if (mountType !== 'dav' && mountType !== 'infuse' && mountType !== 'html') {
-        return new Response('Not Found', { status: 404 });
+        response = new Response('Not Found', { status: 404 });
+        return addWebDAVSafeSecurityHeaders(response, request, env);
       }
 
       if (!env.RD_TOKEN) {
-        return new Response('Configuration Error: RD_TOKEN not set', { 
+        response = new Response('Configuration Error: RD_TOKEN not set', { 
           status: 500,
           headers: { 'Content-Type': 'text/plain' }
         });
+        return addWebDAVSafeSecurityHeaders(response, request, env);
       }
 
       if (!env.DB) {
@@ -195,25 +204,28 @@ export default {
       // Handle HTML browser requests
       if (mountType === 'html') {
         const htmlBrowser = new HTMLBrowser(env, request);
-        return await handleHTMLRequest(pathSegments, storage, htmlBrowser);
+        response = await handleHTMLRequest(pathSegments, storage, htmlBrowser);
+        return addWebDAVSafeSecurityHeaders(response, request, env);
       }
 
       if (request.method === 'PROPFIND') {
         console.log('Handling WebDAV PROPFIND request...');
         try {
-          return await handleWebDAVRequest(request, env, storage, webdav, mountType);
+          response = await handleWebDAVRequest(request, env, storage, webdav, mountType);
+          return addWebDAVSafeSecurityHeaders(response, request, env);
         } catch (webdavError) {
           console.error('WebDAV PROPFIND error:', webdavError);
-          return new Response(`WebDAV Error: ${webdavError instanceof Error ? webdavError.message : 'Unknown'}`, { 
+          response = new Response(`WebDAV Error: ${webdavError instanceof Error ? webdavError.message : 'Unknown'}`, { 
             status: 500,
             headers: { 'Content-Type': 'text/plain' }
           });
+          return addWebDAVSafeSecurityHeaders(response, request, env);
         }
       }
 
       if (request.method === 'OPTIONS') {
         console.log('Handling WebDAV OPTIONS request...');
-        return new Response(null, {
+        response = new Response(null, {
           status: 200,
           headers: {
             'DAV': '1, 2',
@@ -222,28 +234,33 @@ export default {
             'Content-Length': '0'
           }
         });
+        return addWebDAVSafeSecurityHeaders(response, request, env);
       }
 
       if (request.method === 'GET') {
         console.log('Handling WebDAV GET request...');
         try {
-          return await handleWebDAVGET(request, env, storage, webdav, mountType);
+          response = await handleWebDAVGET(request, env, storage, webdav, mountType);
+          return addWebDAVSafeSecurityHeaders(response, request, env);
         } catch (webdavError) {
           console.error('WebDAV GET error:', webdavError);
-          return new Response(`WebDAV Error: ${webdavError instanceof Error ? webdavError.message : 'Unknown'}`, { 
+          response = new Response(`WebDAV Error: ${webdavError instanceof Error ? webdavError.message : 'Unknown'}`, { 
             status: 500,
             headers: { 'Content-Type': 'text/plain' }
           });
+          return addWebDAVSafeSecurityHeaders(response, request, env);
         }
       }
 
-      return new Response('Method Not Allowed', { status: 405 });
+      response = new Response('Method Not Allowed', { status: 405 });
+      return addWebDAVSafeSecurityHeaders(response, request, env);
     } catch (error) {
       console.error('=== WORKER ERROR ===');
       console.error('Worker error:', error);
       console.error('Error stack:', error instanceof Error ? error.stack : 'No stack');
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-      return new Response(`Internal Server Error: ${errorMessage}`, { status: 500 });
+      response = new Response(`Internal Server Error: ${errorMessage}`, { status: 500 });
+      return addWebDAVSafeSecurityHeaders(response, request, env);
     }
   },
 };
