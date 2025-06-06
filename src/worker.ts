@@ -2,14 +2,13 @@ import { Env, RealDebridUser, RealDebridTrafficInfo } from './types';
 import { StorageManager } from './storage';
 import { WebDAVGenerator } from './webdav';
 import { HTMLBrowser } from './html-browser';
-import { maybeRefreshTorrents, handleSTRMPriorityRequest } from './handlers';
+import { maybeRefreshTorrents, handleSTRMPriorityRequest, handleDirectoryPriorityRequest, handleTorrentPriorityRequest, testDirectoryPriorityRequest } from './handlers';
 import { handleWebDAVRequest, handleWebDAVGET } from './webdav-handlers';
 import { handleSTRMDownload } from './strm-handler';
 import { RealDebridClient } from './realdebrid';
-import { formatPoints, calculateDaysRemaining, calculateTotalTrafficServed, formatTrafficServed } from './utils';
+import { formatPoints, calculateDaysRemaining, calculateTotalTrafficServed, formatTrafficServed, convertToTorrent } from './utils';
 
 function checkBasicAuth(request: Request, env: Env): Response | null {
-  // If no USERNAME or PASSWORD is configured, skip authentication
   if (!env.USERNAME || !env.PASSWORD) {
     return null;
   }
@@ -27,12 +26,10 @@ function checkBasicAuth(request: Request, env: Env): Response | null {
   }
 
   try {
-    // Decode the base64 credentials
-    const base64Credentials = authHeader.substring(6); // Remove 'Basic ' prefix
+    const base64Credentials = authHeader.substring(6);
     const credentials = atob(base64Credentials);
     const [username, password] = credentials.split(':');
 
-    // Check credentials
     if (username !== env.USERNAME || password !== env.PASSWORD) {
       return new Response('Invalid credentials', {
         status: 401,
@@ -43,7 +40,6 @@ function checkBasicAuth(request: Request, env: Env): Response | null {
       });
     }
 
-    // Authentication successful
     return null;
   } catch (error) {
     console.error('Authentication error:', error);
@@ -56,11 +52,9 @@ function checkBasicAuth(request: Request, env: Env): Response | null {
     });
   }
 }
-
 async function generateStatusPage(env: Env, request: Request): Promise<string> {
   console.log('=== GENERATING STATUS PAGE ===');
   
-  // Get user info for Real Debrid Account block
   let userInfo = null;
   if (env.RD_TOKEN) {
     try {
@@ -75,7 +69,6 @@ async function generateStatusPage(env: Env, request: Request): Promise<string> {
     }
   }
 
-  // Use HTMLBrowser to generate the home page with the same styling
   const htmlBrowser = new HTMLBrowser(env, request);
   return await htmlBrowser.generateHomePage(userInfo);
 }
@@ -84,7 +77,6 @@ export default {
   async fetch(request: Request, env: Env): Promise<Response> {
     console.log('=== WORKER STARTED ===');
     try {
-      // Check basic authentication first
       const authResponse = checkBasicAuth(request, env);
       if (authResponse) {
         return authResponse;
@@ -95,17 +87,11 @@ export default {
       
       console.log(`Request: ${request.method} ${url.pathname}`);
       console.log('Path segments:', pathSegments);
-      console.log('Environment check - RD_TOKEN:', !!env.RD_TOKEN);
-      console.log('Environment check - DB:', !!env.DB);
       
       if (pathSegments.length === 0) {
         console.log('=== ROOT ENDPOINT HANDLER ===');
         try {
-          console.log('Building status page...');
-          
-          // Generate HTML status page instead of text
           const html = await generateStatusPage(env, request);
-          
           return new Response(html, { 
             status: 200,
             headers: { 'Content-Type': 'text/html; charset=utf-8' }
@@ -119,17 +105,15 @@ export default {
         }
       }
 
-      // Handle STRM download requests
       if (pathSegments[0] === 'strm' && pathSegments.length === 2) {
         const strmCode = pathSegments[1];
         await maybeRefreshTorrents(env);
         const storage = new StorageManager(env);
         return await handleSTRMDownload(strmCode, env, storage);
       }
-
-      const mountType = pathSegments[0] as 'dav' | 'infuse' | 'html';
+      const mountType = pathSegments[0] as 'dav' | 'infuse' | 'files';
       
-      if (mountType !== 'dav' && mountType !== 'infuse' && mountType !== 'html') {
+      if (mountType !== 'dav' && mountType !== 'infuse' && mountType !== 'files') {
         return new Response('Not Found', { status: 404 });
       }
 
@@ -141,50 +125,9 @@ export default {
       }
 
       if (!env.DB) {
-        return new Response(`
-<!DOCTYPE html>
-<html>
-<head>
-  <title>Zurg Serverless - Setup Required</title>
-  <style>
-    body { font-family: system-ui, sans-serif; max-width: 600px; margin: 50px auto; padding: 20px; }
-    .container { text-align: center; }
-    .error { background: #fee; border: 1px solid #fcc; padding: 20px; border-radius: 8px; margin: 20px 0; }
-    .setup { background: #efe; border: 1px solid #cfc; padding: 20px; border-radius: 8px; margin: 20px 0; }
-    code { background: #f5f5f5; padding: 2px 6px; border-radius: 4px; font-family: monospace; }
-    pre { background: #f5f5f5; padding: 15px; border-radius: 4px; text-align: left; overflow-x: auto; }
-  </style>
-</head>
-<body>
-  <div class="container">
-    <h1>🏗️ Zurg Serverless</h1>
-    <div class="error">
-      <h2>⚠️ Database Not Configured</h2>
-      <p>D1 database binding is not available. The database needs to be created and configured.</p>
-    </div>
-    
-    <div class="setup">
-      <h2>🚀 Quick Setup</h2>
-      <p>Stop the current dev server and run:</p>
-      <pre><code>npm run dev</code></pre>
-      <p>This will automatically create and configure your D1 database.</p>
-    </div>
-    
-    <div class="setup">
-      <h2>🔧 Manual Setup</h2>
-      <p>Or create the database manually:</p>
-      <pre><code>npm run setup-d1</code></pre>
-      <p>Then restart with <code>wrangler dev</code></p>
-    </div>
-    
-    <div style="margin-top: 40px; color: #666; font-size: 14px;">
-      <p>For more information, see the project README.</p>
-    </div>
-  </div>
-</body>
-</html>`, { 
+        return new Response('Database not configured', { 
           status: 503,
-          headers: { 'Content-Type': 'text/html; charset=utf-8' }
+          headers: { 'Content-Type': 'text/plain' }
         });
       }
 
@@ -192,27 +135,16 @@ export default {
       const storage = new StorageManager(env);
       const webdav = new WebDAVGenerator(env, request);
 
-      // Handle HTML browser requests
-      if (mountType === 'html') {
+      if (mountType === 'files') {
         const htmlBrowser = new HTMLBrowser(env, request);
-        return await handleHTMLRequest(pathSegments, storage, htmlBrowser);
+        return await handleFilesRequest(pathSegments, storage, htmlBrowser, request, env);
       }
 
       if (request.method === 'PROPFIND') {
-        console.log('Handling WebDAV PROPFIND request...');
-        try {
-          return await handleWebDAVRequest(request, env, storage, webdav, mountType);
-        } catch (webdavError) {
-          console.error('WebDAV PROPFIND error:', webdavError);
-          return new Response(`WebDAV Error: ${webdavError instanceof Error ? webdavError.message : 'Unknown'}`, { 
-            status: 500,
-            headers: { 'Content-Type': 'text/plain' }
-          });
-        }
+        return await handleWebDAVRequest(request, env, storage, webdav, mountType);
       }
 
       if (request.method === 'OPTIONS') {
-        console.log('Handling WebDAV OPTIONS request...');
         return new Response(null, {
           status: 200,
           headers: {
@@ -225,102 +157,134 @@ export default {
       }
 
       if (request.method === 'GET') {
-        console.log('Handling WebDAV GET request...');
-        try {
-          return await handleWebDAVGET(request, env, storage, webdav, mountType);
-        } catch (webdavError) {
-          console.error('WebDAV GET error:', webdavError);
-          return new Response(`WebDAV Error: ${webdavError instanceof Error ? webdavError.message : 'Unknown'}`, { 
-            status: 500,
-            headers: { 'Content-Type': 'text/plain' }
-          });
-        }
+        return await handleWebDAVGET(request, env, storage, webdav, mountType);
       }
 
       return new Response('Method Not Allowed', { status: 405 });
     } catch (error) {
-      console.error('=== WORKER ERROR ===');
       console.error('Worker error:', error);
-      console.error('Error stack:', error instanceof Error ? error.stack : 'No stack');
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
       return new Response(`Internal Server Error: ${errorMessage}`, { status: 500 });
     }
   },
 };
 
-
-async function handleHTMLRequest(pathSegments: string[], storage: StorageManager, htmlBrowser: HTMLBrowser): Promise<Response> {
-  // Remove 'html' from pathSegments
-  const htmlPath = pathSegments.slice(1);
+async function handleFilesRequest(pathSegments: string[], storage: StorageManager, htmlBrowser: HTMLBrowser, request: Request, env: Env): Promise<Response> {
+  console.log('=== Files Request Handler ===');
+  const filesPath = pathSegments.slice(1);
   
-  if (htmlPath.length === 0) {
-    // Root HTML page - show directories
+  if (filesPath.length === 0) {
+    await maybeRefreshTorrents(env);
     const directories = await storage.getAllDirectories();
-    const html = await htmlBrowser.generateRootPage(directories);
+    const html = await htmlBrowser.generateFilesRootPage(directories);
     return new Response(html, {
       status: 200,
       headers: { 'Content-Type': 'text/html; charset=utf-8' }
     });
   }
-  
-  if (htmlPath.length === 1) {
-    // Directory page - show torrents in directory
-    const directory = decodeURIComponent(htmlPath[0]);
-    const torrents = await storage.getDirectory(directory);
+
+  if (filesPath.length === 1) {
+    const torrentName = decodeURIComponent(filesPath[0]);
+    const { fetchTorrentDetails } = await import('./handlers');
+    const torrent = await fetchTorrentDetails(torrentName, env, storage);
     
-    if (!torrents) {
-      return new Response('Directory not found', { status: 404 });
+    if (!torrent) {
+      return new Response(htmlBrowser.generateErrorPage('Torrent Not Found', 
+        `The torrent "${torrentName}" was not found.`), {
+        status: 404,
+        headers: { 'Content-Type': 'text/html; charset=utf-8' }
+      });
     }
     
-    const html = htmlBrowser.generateDirectoryPage(directory, torrents);
+    const html = await htmlBrowser.generateTorrentFilesPage(torrentName, torrent);
     return new Response(html, {
       status: 200,
       headers: { 'Content-Type': 'text/html; charset=utf-8' }
     });
   }
-  
-  if (htmlPath.length === 2) {
-    // Torrent page - show STRM files in torrent
-    const directory = decodeURIComponent(htmlPath[0]);
-    const torrentName = decodeURIComponent(htmlPath[1]);
+
+  if (filesPath.length === 2) {
+    const torrentName = decodeURIComponent(filesPath[0]);
+    const fileName = decodeURIComponent(filesPath[1]);
+    const { fetchTorrentDetails, fetchFileDownloadLink } = await import('./handlers');
+    const torrent = await fetchTorrentDetails(torrentName, env, storage);
     
-    const result = await storage.getTorrentByName(directory, torrentName);
+    if (!torrent) {
+      return new Response(htmlBrowser.generateErrorPage('Torrent Not Found', 
+        `The torrent "${torrentName}" was not found.`), {
+        status: 404,
+        headers: { 'Content-Type': 'text/html; charset=utf-8' }
+      });
+    }
     
-    if (!result) {
+    const file = torrent.selectedFiles[fileName];
+    if (!file) {
+      return new Response(htmlBrowser.generateErrorPage('File Not Found', 
+        `The file "${fileName}" was not found in torrent "${torrentName}".`), {
+        status: 404,
+        headers: { 'Content-Type': 'text/html; charset=utf-8' }
+      });
+    }
+    
+    // Fetch fresh download link when viewing file details (one of the 3 allowed scenarios)
+    if (!file.link) {
+      console.log(`🔗 Fetching fresh download link for file details view: ${fileName}`);
+      const freshLink = await fetchFileDownloadLink(torrent.id, fileName, env, storage);
+      if (freshLink) {
+        file.link = freshLink;
+      }
+    }
+    
+    const html = await htmlBrowser.generateFileDetailsPage(torrentName, fileName, file);
+    return new Response(html, {
+      status: 200,
+      headers: { 'Content-Type': 'text/html; charset=utf-8' }
+    });
+  }
+
+  if (filesPath.length === 3 && filesPath[2].endsWith('.strm')) {
+    const torrentName = decodeURIComponent(filesPath[0]);
+    const fileName = decodeURIComponent(filesPath[1]);
+    const strmFileName = decodeURIComponent(filesPath[2]);
+    
+    const { fetchTorrentDetails, fetchFileDownloadLink } = await import('./handlers');
+    const torrent = await fetchTorrentDetails(torrentName, env, storage);
+    
+    if (!torrent) {
       return new Response('Torrent not found', { status: 404 });
     }
     
-    const { torrent } = result;
-    const html = htmlBrowser.generateTorrentPage(directory, torrent, torrentName);
-    return new Response(html, {
-      status: 200,
-      headers: { 'Content-Type': 'text/html; charset=utf-8' }
-    });
-  }
-  
-  if (htmlPath.length === 3) {
-    // STRM file content page
-    const directory = decodeURIComponent(htmlPath[0]);
-    const torrentName = decodeURIComponent(htmlPath[1]);
-    const filename = decodeURIComponent(htmlPath[2]);
-    
-    if (!filename.endsWith('.strm')) {
-      return new Response('Not a STRM file', { status: 400 });
+    const file = torrent.selectedFiles[fileName];
+    if (!file) {
+      return new Response('File not found', { status: 404 });
     }
     
-    const result = await storage.getTorrentByName(directory, torrentName);
-    
-    if (!result) {
-      return new Response('Torrent not found', { status: 404 });
+    // Fetch fresh download link when downloading STRM file (one of the 3 allowed scenarios)
+    let downloadLink = file.link;
+    if (!downloadLink) {
+      console.log(`🔗 Fetching fresh download link for STRM download: ${fileName}`);
+      downloadLink = await fetchFileDownloadLink(torrent.id, fileName, env, storage);
+      if (!downloadLink) {
+        return new Response('Download link not available', { status: 404 });
+      }
     }
     
-    const { torrent } = result;
-    const html = await htmlBrowser.generateSTRMFilePage(directory, torrentName, filename, torrent);
-    return new Response(html, {
+    const webdav = new (await import('./webdav')).WebDAVGenerator(env, request);
+    const strmContent = await webdav.generateSTRMContent(torrentName, torrent.id, fileName, downloadLink);
+    
+    return new Response(strmContent.content, {
       status: 200,
-      headers: { 'Content-Type': 'text/html; charset=utf-8' }
+      headers: {
+        'Content-Type': 'application/x-stream',
+        'Content-Disposition': `attachment; filename="${strmFileName}"`,
+        'Content-Length': strmContent.size.toString()
+      }
     });
   }
-  
-  return new Response('Not Found', { status: 404 });
+
+  return new Response(htmlBrowser.generateErrorPage('Not Found', 
+    'The requested page was not found.'), {
+    status: 404,
+    headers: { 'Content-Type': 'text/html; charset=utf-8' }
+  });
 }

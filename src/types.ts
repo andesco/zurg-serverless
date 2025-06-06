@@ -110,6 +110,7 @@ export interface Torrent {
   downloadedIDs: string[];
   state: 'ok_torrent' | 'broken_torrent';
   totalSize: number;
+  cacheTimestamp?: number; // When this torrent was last cached
 }
 
 export interface DirectoryMap {

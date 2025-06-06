@@ -82,8 +82,8 @@ export class StorageManager {
     await this.db
       .prepare(`
         INSERT OR REPLACE INTO torrents 
-        (access_key, id, name, original_name, hash, added, ended, selected_files, downloaded_ids, state, total_size)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        (access_key, id, name, original_name, hash, added, ended, selected_files, downloaded_ids, state, total_size, cache_timestamp)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       `)
       .bind(
         accessKey,
@@ -96,7 +96,8 @@ export class StorageManager {
         JSON.stringify(torrent.selectedFiles),
         JSON.stringify(torrent.downloadedIDs),
         torrent.state,
-        torrent.totalSize
+        torrent.totalSize,
+        torrent.cacheTimestamp || null
       )
       .run();
   }
@@ -108,7 +109,7 @@ export class StorageManager {
       .run();
   }
   // Directory operations
-  async getDirectory(directory: string): Promise<{ [accessKey: string]: Torrent } | null> {
+  async getDirectory(directory: string, filterForWebDAV = false): Promise<{ [accessKey: string]: Torrent } | null> {
     const results = await this.db
       .prepare(`
         SELECT t.*, d.access_key
@@ -134,8 +135,15 @@ export class StorageManager {
         selectedFiles: JSON.parse(result.selected_files as string),
         downloadedIDs: JSON.parse(result.downloaded_ids as string),
         state: result.state as 'ok_torrent' | 'broken_torrent',
-        totalSize: result.total_size as number
+        totalSize: result.total_size as number,
+        cacheTimestamp: result.cache_timestamp as number || undefined
       };
+      
+      // Filter out torrents without details for WebDAV
+      if (filterForWebDAV) {
+        const hasFiles = Object.keys(torrent.selectedFiles).length > 0;
+        if (!hasFiles) continue; // Skip torrents without file details
+      }
       
       torrents[result.access_key as string] = torrent;
     }
@@ -163,7 +171,9 @@ export class StorageManager {
       .prepare('SELECT DISTINCT directory FROM directories ORDER BY directory')
       .all();
     
-    return results.results?.map(row => row.directory as string) || [];
+    // Filter out "__all__" and internal directories
+    return results.results?.map(row => row.directory as string)
+      .filter(dir => dir !== '__all__' && !dir.startsWith('int__')) || [];
   }
 
   // Bulk operations
@@ -178,8 +188,8 @@ export class StorageManager {
           this.db
             .prepare(`
               INSERT OR REPLACE INTO torrents 
-              (access_key, id, name, original_name, hash, added, ended, selected_files, downloaded_ids, state, total_size)
-              VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+              (access_key, id, name, original_name, hash, added, ended, selected_files, downloaded_ids, state, total_size, cache_timestamp)
+              VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             `)
             .bind(
               accessKey,
@@ -192,7 +202,8 @@ export class StorageManager {
               JSON.stringify(torrent.selectedFiles),
               JSON.stringify(torrent.downloadedIDs),
               torrent.state,
-              torrent.totalSize
+              torrent.totalSize,
+              torrent.cacheTimestamp || null
             )
         );
       }
@@ -338,5 +349,144 @@ export class StorageManager {
     // For now, just ensure it gets refreshed by clearing cache
     await this.expireTorrentDetails(torrentId);
     console.log(`🔥 STRM priority requested for torrent ${torrentId}`);
+  }
+
+  // Enhanced cache management for folder navigation fix
+  async updateCacheMetadata(): Promise<void> {
+    console.log('🔄 Updating cache metadata to force refresh');
+    try {
+      // First, try to use the new cache_settings table structure
+      await this.db
+        .prepare('INSERT OR REPLACE INTO cache_settings (key, value) VALUES (?, ?)')
+        .bind('main', JSON.stringify({
+          lastRefresh: 0, // Set to 0 to force refresh on next call
+          lastUpdate: Date.now(),
+          forceRefresh: true
+        }))
+        .run();
+      
+      console.log('✅ Cache metadata updated - next request will refresh');
+    } catch (error) {
+      console.log('⚠️ New cache table not available, using fallback method');
+      // Fallback: Force a refresh by updating the existing cache metadata
+      try {
+        await this.db
+          .prepare('UPDATE cache_metadata SET last_refresh = 0, updated_at = ? WHERE id = 1')
+          .bind(Math.floor(Date.now() / 1000))
+          .run();
+        console.log('✅ Cache refresh forced using existing table');
+      } catch (fallbackError) {
+        console.log('⚠️ Cache refresh requested but tables not available, refresh will happen naturally');
+      }
+    }
+  }
+
+  // Get cache statistics with duplicate detection
+  async getCacheStatistics(): Promise<{ cached: number; pending: number; duplicates: number; total: number }> {
+    try {
+      // Get all torrents with their details
+      const results = await this.db
+        .prepare(`
+          SELECT 
+            id,
+            selected_files,
+            cache_timestamp
+          FROM torrents
+        `)
+        .all();
+      
+      if (!results.results) {
+        return { total: 0, cached: 0, pending: 0, duplicates: 0 };
+      }
+      
+      // Track unique torrent IDs and their cache status
+      const uniqueTorrents = new Map<string, { cached: boolean, count: number }>();
+      
+      for (const row of results.results) {
+        const torrentId = row.id as string;
+        const selectedFiles = row.selected_files as string;
+        const cacheTimestamp = row.cache_timestamp as number | null;
+        
+        // Determine if this torrent is cached
+        // A torrent is cached if it has detailed file information (more than just "[]")
+        const hasFileDetails = selectedFiles && selectedFiles.length > 5 && selectedFiles !== '[]';
+        const isCached = hasFileDetails || cacheTimestamp !== null;
+        
+        if (uniqueTorrents.has(torrentId)) {
+          // This is a duplicate
+          const existing = uniqueTorrents.get(torrentId)!;
+          existing.count++;
+          // If any instance is cached, consider the torrent cached
+          if (isCached) {
+            existing.cached = true;
+          }
+        } else {
+          // First occurrence of this torrent
+          uniqueTorrents.set(torrentId, { cached: isCached, count: 1 });
+        }
+      }
+      
+      // Calculate statistics
+      let cached = 0;
+      let pending = 0;
+      let duplicates = 0;
+      let totalEntries = 0;
+      
+      for (const [torrentId, info] of uniqueTorrents) {
+        totalEntries += info.count;
+        
+        if (info.count > 1) {
+          duplicates += (info.count - 1); // Count extra entries as duplicates
+        }
+        
+        if (info.cached) {
+          cached++;
+        } else {
+          pending++;
+        }
+      }
+      
+      return {
+        total: uniqueTorrents.size, // Unique torrents
+        cached,
+        pending,
+        duplicates
+      };
+    } catch (error) {
+      console.error('Error getting cache statistics:', error);
+      return { total: 0, cached: 0, pending: 0, duplicates: 0 };
+    }
+  }
+
+  // Save individual torrent details
+  async saveTorrentDetails(torrentId: string, torrent: Torrent): Promise<void> {
+    const accessKey = torrent.id;
+    await this.db
+      .prepare(`
+        INSERT OR REPLACE INTO torrents 
+        (access_key, id, name, original_name, hash, added, ended, selected_files, downloaded_ids, state, total_size, cache_timestamp)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `)
+      .bind(
+        accessKey,
+        torrent.id,
+        torrent.name,
+        torrent.originalName,
+        torrent.hash,
+        torrent.added,
+        torrent.ended || null,
+        JSON.stringify(torrent.selectedFiles),
+        JSON.stringify(torrent.downloadedIDs),
+        torrent.state,
+        torrent.totalSize,
+        torrent.cacheTimestamp || Date.now()
+      )
+      .run();
+
+    // Also update directory mapping
+    await this.db
+      .prepare('INSERT OR REPLACE INTO directories (directory, access_key) VALUES (?, ?)')
+      .bind(torrent.name, accessKey) // Use exact torrent name as directory
+      .run();
   }
 }

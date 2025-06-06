@@ -177,4 +177,45 @@ export class WebDAVGenerator {
       }
     });
   }
+
+  // Generate WebDAV response for files within a single torrent
+  generateTorrentFilesResponse(torrent: Torrent, mountType: 'dav' | 'infuse'): string {
+    const files = Object.entries(torrent.selectedFiles)
+      .filter(([_, file]) => file.state === 'ok_file')
+      .map(([filename, file]) => {
+        const strmFilename = this.generateSTRMFilename(filename);
+        return `
+          <d:response>
+            <d:href>${this.escapeXml(`/${mountType}/${encodeURIComponent(torrent.name)}/${encodeURIComponent(strmFilename)}`)}</d:href>
+            <d:propstat>
+              <d:prop>
+                <d:displayname>${this.escapeXml(strmFilename)}</d:displayname>
+                <d:getcontentlength>${this.escapeXml(strmFilename.length.toString())}</d:getcontentlength>
+                <d:getcontenttype>application/x-stream</d:getcontenttype>
+                <d:getlastmodified>${new Date(file.ended || torrent.added).toUTCString()}</d:getlastmodified>
+                <d:resourcetype/>
+              </d:prop>
+              <d:status>HTTP/1.1 200 OK</d:status>
+            </d:propstat>
+          </d:response>`;
+      }).join('');
+
+    return `<?xml version="1.0" encoding="utf-8"?>
+<d:multistatus xmlns:d="DAV:">
+  <d:response>
+    <d:href>${this.escapeXml(`/${mountType}/${encodeURIComponent(torrent.name)}/`)}</d:href>
+    <d:propstat>
+      <d:prop>
+        <d:displayname>${this.escapeXml(torrent.name)}</d:displayname>
+        <d:resourcetype>
+          <d:collection/>
+        </d:resourcetype>
+        <d:getlastmodified>${new Date(torrent.added).toUTCString()}</d:getlastmodified>
+      </d:prop>
+      <d:status>HTTP/1.1 200 OK</d:status>
+    </d:propstat>
+  </d:response>
+  ${files}
+</d:multistatus>`;
+  }
 }

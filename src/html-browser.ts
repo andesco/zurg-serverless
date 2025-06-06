@@ -304,6 +304,21 @@ export class HTMLBrowser {
   private getBaseScripts(): string {
     return `
       <script>
+        // Enhanced navigation 
+        function navigateToFolder(path) {
+          console.log('Navigating to folder:', path);
+          window.location.href = path;
+        }
+
+        function refreshCache() {
+          console.log('Refreshing cache...');
+          // Force cache refresh by adding refresh parameter
+          const currentUrl = new URL(window.location.href);
+          currentUrl.searchParams.set('refresh', 'true');
+          console.log('Refreshing with URL:', currentUrl.toString());
+          window.location.href = currentUrl.toString();
+        }
+
         // Initialize Lucide icons
         lucide.createIcons();
 
@@ -330,11 +345,11 @@ export class HTMLBrowser {
         }
 
         // View mode functionality
-        let currentViewMode = localStorage.getItem('viewMode') || 'list';
+        let currentViewMode = 'list'; // Always default to list (localStorage not available in Workers)
 
         function setViewMode(mode) {
           currentViewMode = mode;
-          localStorage.setItem('viewMode', mode);
+          // Note: localStorage not available in Workers environment
           
           const gridView = document.getElementById('grid-view');
           const listView = document.getElementById('list-view');
@@ -438,9 +453,9 @@ export class HTMLBrowser {
   private generateSidebar(activePage: string): string {
     const navItems = [
       { href: '/', icon: 'home', label: 'Home', id: 'home' },
-      { href: '/html/', icon: 'film', label: 'HTML File Browser', id: 'html' },
+      { href: '/files/', icon: 'folder', label: 'Files', id: 'files' },
       { href: '/dav/', icon: 'server', label: 'WebDAV', id: 'webdav' },
-      { href: '/infuse/', icon: 'tv', label: 'WebDAV for Infuse', id: 'infuse' }
+      { href: '/infuse/', icon: 'server', label: 'WebDAV for Infuse', id: 'infuse' }
     ];
 
     return `
@@ -468,8 +483,9 @@ export class HTMLBrowser {
                 <a href="${item.href}"
                    class="flex items-center gap-3 rounded-lg px-3 py-2 text-muted-foreground transition-all hover:text-foreground hover:bg-accent ${
                      activePage === item.id ? 'bg-accent text-accent-foreground' : ''
-                   }">
-                  <i data-lucide="${item.icon}" class="icon"></i>
+                   } ${item.id === 'infuse' ? 'hover:text-orange-600' : ''}"
+                   ${item.id === 'infuse' ? 'style="color: #ea580c;"' : ''}>
+                  <i data-lucide="${item.icon}" class="icon ${item.id === 'infuse' ? 'text-orange-600' : ''}"></i>
                   <span>${item.label}</span>
                 </a>
               `).join('')}
@@ -485,29 +501,66 @@ export class HTMLBrowser {
     `;
   }
 
-  async generateRootPage(directories: string[]): Promise<string> {
-    const validDirectories = directories.filter(d => !d.startsWith('int__'));
+  async generateRootPage(directories: string[], debugInfo?: any): Promise<string> {
+    // Show all directories except "__all__" and internal directories
+    const validDirectories = directories.filter(d => d !== '__all__' && !d.startsWith('int__'));
     
-    const directoryCards = validDirectories.map(dir => `
-      <div class="search-item">
-        <div class="card cursor-pointer transition-shadow hover:shadow-md"
-             data-searchable="${this.escapeHtml(dir)}"
-             onclick="window.location.href='/html/${encodeURIComponent(dir)}/'">
-          <div class="p-6">
-            <div class="flex items-center justify-between mb-4">
-              <div class="flex justify-center">
-                <i data-lucide="folder" class="icon-xl text-yellow-500"></i>
+    // Get torrent counts for each directory
+    const storage = new (await import('./storage')).StorageManager(this.env);
+    
+    // Get cache statistics quickly
+    const cacheStats = await storage.getCacheStatistics();
+    
+    const directoryCards = await Promise.all(validDirectories.map(async dir => {
+      const torrents = await storage.getDirectory(dir);
+      const itemCount = torrents ? Object.keys(torrents).length : 0;
+      const itemText = itemCount === 1 ? '1 item' : `${itemCount} items`;
+      
+      // Grid view card
+      const gridCard = `
+        <div class="search-item">
+          <div class="card cursor-pointer transition-shadow hover:shadow-md"
+               data-searchable="${this.escapeHtml(dir)}"
+               onclick="navigateToFolder('/html/${encodeURIComponent(dir)}/')">
+            <div class="p-6">
+              <div class="flex items-center justify-between mb-4">
+                <div class="flex justify-center">
+                  <i data-lucide="folder" class="icon-xl text-yellow-500"></i>
+                </div>
+                <i data-lucide="chevron-right" class="icon text-muted-foreground"></i>
               </div>
-              <i data-lucide="chevron-right" class="icon text-muted-foreground"></i>
-            </div>
-            <div class="space-y-1">
-              <p class="font-medium text-sm truncate">${this.escapeHtml(dir)}</p>
-              <p class="text-xs text-muted-foreground">Media directory</p>
+              <div class="space-y-1">
+                <p class="font-medium text-sm truncate">${this.escapeHtml(dir)}</p>
+                <p class="text-xs text-muted-foreground">${itemText}</p>
+              </div>
             </div>
           </div>
         </div>
-      </div>
-    `).join('');
+      `;
+      
+      // List view row
+      const listRow = `
+        <div class="search-item">
+          <div class="card cursor-pointer transition-shadow hover:shadow-md"
+               data-searchable="${this.escapeHtml(dir)}"
+               onclick="navigateToFolder('/html/${encodeURIComponent(dir)}/')">
+            <div class="p-3">
+              <div class="flex items-center gap-3">
+                <div class="flex justify-center">
+                  <i data-lucide="folder" class="icon-xl text-yellow-500"></i>
+                </div>
+                <div class="flex-1">
+                  <p class="font-medium text-sm truncate">${this.escapeHtml(dir)}</p>
+                  <p class="text-xs text-muted-foreground">${itemText}</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      `;
+      
+      return { gridCard, listRow };
+    }));
 
     return `<!DOCTYPE html>
 <html lang="en">
@@ -539,6 +592,9 @@ export class HTMLBrowser {
             <div>
               <h1 class="text-2xl font-bold text-gray-900 hidden md:block">Media Library</h1>
               <p class="text-gray-600">${validDirectories.length} directories</p>
+              <p class="text-xs text-muted-foreground">
+                ${cacheStats.cached} cached, ${cacheStats.pending} pending, ${cacheStats.duplicates} duplicates
+              </p>
             </div>
             <div class="flex items-center gap-4">
               <div class="relative">
@@ -548,6 +604,14 @@ export class HTMLBrowser {
                   placeholder="Search media..."
                   oninput="handleSearch(event)"
                   class="input pl-10 w-60 md:w-80" />
+              </div>
+              <div class="flex border rounded-md">
+                <button id="grid-btn" onclick="setViewMode('grid')" class="btn btn-sm btn-ghost">
+                  <i data-lucide="grid-3x3" class="icon"></i>
+                </button>
+                <button id="list-btn" onclick="setViewMode('list')" class="btn btn-sm btn-ghost">
+                  <i data-lucide="list" class="icon"></i>
+                </button>
               </div>
             </div>
           </div>
@@ -561,8 +625,14 @@ export class HTMLBrowser {
             <i data-lucide="folder" class="icon-lg"></i>
             Directories
           </h2>
-          <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
-            ${directoryCards || '<div class="col-span-full text-center text-muted-foreground py-12">No directories found</div>'}
+          <!-- Grid View -->
+          <div id="grid-view" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4 hidden">
+            ${directoryCards.map(item => item.gridCard).join('') || '<div class="col-span-full text-center text-muted-foreground py-12">No directories found</div>'}
+          </div>
+          
+          <!-- List View -->
+          <div id="list-view" class="space-y-2">
+            ${directoryCards.map(item => item.listRow).join('') || '<div class="text-center text-muted-foreground py-12">No directories found</div>'}
           </div>
         </div>
       </div>
@@ -585,7 +655,7 @@ export class HTMLBrowser {
         <div class="search-item">
           <div class="card cursor-pointer transition-shadow hover:shadow-md"
                data-searchable="${this.escapeHtml(torrent.name)}"
-               onclick="window.location.href='/html/${encodeURIComponent(directory)}/${encodeURIComponent(torrent.name)}/'">
+               onclick="navigateToFolder('/html/${encodeURIComponent(directory)}/${encodeURIComponent(torrent.name)}/')">
             <div class="p-4 text-center">
               <div class="space-y-2">
                 <div class="flex justify-center">
@@ -606,7 +676,7 @@ export class HTMLBrowser {
         <div class="search-item">
           <div class="card cursor-pointer transition-shadow hover:shadow-md"
                data-searchable="${this.escapeHtml(torrent.name)}"
-               onclick="window.location.href='/html/${encodeURIComponent(directory)}/${encodeURIComponent(torrent.name)}/'">
+               onclick="navigateToFolder('/html/${encodeURIComponent(directory)}/${encodeURIComponent(torrent.name)}/')">
             <div class="p-3">
               <div class="flex items-center gap-3">
                 <div class="flex justify-center">
@@ -1422,5 +1492,383 @@ export class HTMLBrowser {
   private formatTrafficServed(bytes: number): string {
     const gb = bytes / (1024 * 1024 * 1024);
     return gb.toFixed(2);
+  }
+
+  // Generate files root page - shows all torrents as individual folders
+  async generateFilesRootPage(directories: string[]): Promise<string> {
+    const storage = new (await import('./storage')).StorageManager(this.env);
+    const cacheStats = await storage.getCacheStatistics();
+    
+    const torrentCards = await Promise.all(directories.map(async torrentName => {
+      const torrents = await storage.getDirectory(torrentName);
+      const torrent = torrents ? Object.values(torrents)[0] : null;
+      const fileCount = torrent ? Object.keys(torrent.selectedFiles).length : 0;
+      const fileText = fileCount === 1 ? '1 file' : `${fileCount} files`;
+      
+      // Grid view card
+      const gridCard = `
+        <div class="search-item">
+          <div class="card cursor-pointer transition-shadow hover:shadow-md"
+               data-searchable="${this.escapeHtml(torrentName)}"
+               onclick="window.location.href='/files/${encodeURIComponent(torrentName)}/'">
+            <div class="p-6">
+              <div class="flex items-center justify-between mb-4">
+                <div class="flex justify-center">
+                  <i data-lucide="folder" class="icon-xl text-blue-500"></i>
+                </div>
+                <i data-lucide="chevron-right" class="icon text-muted-foreground"></i>
+              </div>
+              <div class="space-y-1">
+                <p class="font-medium text-sm truncate">${this.escapeHtml(torrentName)}</p>
+                <p class="text-xs text-muted-foreground">${fileText}</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      `;
+      
+      // List view row
+      const listRow = `
+        <div class="search-item">
+          <div class="card cursor-pointer transition-shadow hover:shadow-md"
+               data-searchable="${this.escapeHtml(torrentName)}"
+               onclick="window.location.href='/files/${encodeURIComponent(torrentName)}/'">
+            <div class="p-3">
+              <div class="flex items-center gap-3">
+                <div class="flex justify-center">
+                  <i data-lucide="folder" class="icon-xl text-blue-500"></i>
+                </div>
+                <div class="flex-1">
+                  <p class="font-medium text-sm truncate">${this.escapeHtml(torrentName)}</p>
+                  <p class="text-xs text-muted-foreground">${fileText}</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      `;
+      
+      return { gridCard, listRow };
+    }));
+
+    return `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Files - Zurg Serverless</title>
+  ${this.getBaseStyles()}
+</head>
+<body class="min-h-screen bg-gray-50">
+  <div class="flex h-screen w-full">
+    ${this.generateSidebar('files')}
+    
+    <div class="flex-1 min-w-0 overflow-auto bg-gray-50">
+      <!-- Mobile Header with Hamburger -->
+      <div class="md:hidden bg-white border-b px-4 py-3 flex items-center justify-between">
+        <button onclick="toggleSidebar()" class="p-2 rounded-md hover:bg-gray-100">
+          <i data-lucide="menu" class="icon"></i>
+        </button>
+        <h1 class="text-lg font-semibold">Files</h1>
+        <div class="w-10"></div> <!-- Spacer for centering -->
+      </div>
+      
+      <div class="bg-white border-b">
+        <div class="px-4 py-4">
+          <div class="flex items-center justify-between">
+            <div>
+              <h1 class="text-2xl font-bold text-gray-900 hidden md:block">Files</h1>
+              <p class="text-gray-600">${directories.length} torrents</p>
+              <p class="text-xs text-muted-foreground">
+                ${cacheStats.cached} cached, ${cacheStats.pending} pending, ${cacheStats.duplicates} duplicates
+              </p>
+            </div>
+            <div class="flex items-center gap-4">
+              <div class="relative">
+                <i data-lucide="search" class="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 icon"></i>
+                <input
+                  type="text"
+                  placeholder="Search torrents..."
+                  oninput="handleSearch(event)"
+                  class="input pl-10 w-60 md:w-80" />
+              </div>
+              <div class="flex border rounded-md">
+                <button id="grid-btn" onclick="setViewMode('grid')" class="btn btn-sm btn-ghost">
+                  <i data-lucide="grid-3x3" class="icon"></i>
+                </button>
+                <button id="list-btn" onclick="setViewMode('list')" class="btn btn-sm btn-ghost">
+                  <i data-lucide="list" class="icon"></i>
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="p-4">
+        <div class="mb-8">
+          <h2 class="text-lg font-semibold mb-4 flex items-center gap-2">
+            <i data-lucide="folder" class="icon-lg"></i>
+            Torrents
+          </h2>
+          <!-- Grid View -->
+          <div id="grid-view" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4 hidden">
+            ${torrentCards.map(item => item.gridCard).join('') || '<div class="col-span-full text-center text-muted-foreground py-12">No torrents found</div>'}
+          </div>
+          
+          <!-- List View -->
+          <div id="list-view" class="space-y-2">
+            ${torrentCards.map(item => item.listRow).join('') || '<div class="text-center text-muted-foreground py-12">No torrents found</div>'}
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  
+  ${this.getBaseScripts()}
+</body>
+</html>`;
+  }
+
+  // Generate torrent files page - shows files within a torrent
+  async generateTorrentFilesPage(torrentName: string, torrent: Torrent): Promise<string> {
+    const fileItems = Object.entries(torrent.selectedFiles)
+      .filter(([_, file]) => file.state === 'ok_file')
+      .map(([filename, file]) => {
+        
+        // Grid view card
+        const gridCard = `
+          <div class="search-item">
+            <div class="card cursor-pointer transition-shadow hover:shadow-md"
+                 data-searchable="${this.escapeHtml(filename)}"
+                 onclick="window.location.href='/files/${encodeURIComponent(torrentName)}/${encodeURIComponent(filename)}/'">
+              <div class="p-4 text-center">
+                <div class="space-y-2">
+                  <div class="w-16 h-24 bg-gradient-to-br from-green-200 to-green-300 rounded mx-auto flex items-center justify-center">
+                    <i data-lucide="file-video" class="icon-xl text-green-600"></i>
+                  </div>
+                  <div class="space-y-1">
+                    <p class="font-medium text-sm line-clamp-2" title="${this.escapeHtml(filename)}">${this.escapeHtml(filename)}</p>
+                    <p class="text-xs text-muted-foreground">${this.formatBytes(file.bytes)}</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        `;
+        
+        // List view row
+        const listRow = `
+          <div class="search-item">
+            <div class="card cursor-pointer transition-shadow hover:shadow-md"
+                 data-searchable="${this.escapeHtml(filename)}"
+                 onclick="window.location.href='/files/${encodeURIComponent(torrentName)}/${encodeURIComponent(filename)}/'">
+              <div class="p-3">
+                <div class="flex items-center gap-3">
+                  <div class="p-2 rounded-lg bg-green-500/10 text-green-600">
+                    <i data-lucide="file-video" class="icon-lg"></i>
+                  </div>
+                  <div class="flex-1 min-w-0">
+                    <h3 class="font-medium text-sm truncate">${this.escapeHtml(filename)}</h3>
+                    <p class="text-xs text-muted-foreground">${this.formatBytes(file.bytes)}</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        `;
+        
+        return { gridCard, listRow };
+      });
+
+    return `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>${this.escapeHtml(torrentName)} - Files</title>
+  ${this.getBaseStyles()}
+</head>
+<body class="min-h-screen bg-gray-50">
+  <div class="flex h-screen w-full">
+    ${this.generateSidebar('files')}
+    
+    <div class="flex-1 min-w-0 overflow-auto bg-gray-50">
+      <!-- Mobile Header with Hamburger -->
+      <div class="md:hidden bg-white border-b px-4 py-3 flex items-center justify-between">
+        <button onclick="toggleSidebar()" class="p-2 rounded-md hover:bg-gray-100">
+          <i data-lucide="menu" class="icon"></i>
+        </button>
+        <h1 class="text-lg font-semibold truncate">${this.escapeHtml(torrentName)}</h1>
+        <div class="w-10"></div> <!-- Spacer for centering -->
+      </div>
+      
+      <div class="bg-white border-b">
+        <div class="px-4 py-4">
+          <div class="flex items-center justify-between">
+            <div>
+              <h1 class="text-2xl font-bold text-gray-900 hidden md:block">Files</h1>
+              <p class="text-gray-600">${fileItems.length} files</p>
+            </div>
+            <div class="flex items-center gap-4">
+              <div class="relative">
+                <i data-lucide="search" class="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 icon"></i>
+                <input
+                  type="text"
+                  placeholder="Search files..."
+                  oninput="handleSearch(event)"
+                  class="input pl-10 w-60 md:w-80" />
+              </div>
+              <div class="flex border rounded-md">
+                <button id="grid-btn" onclick="setViewMode('grid')" class="btn btn-sm btn-ghost">
+                  <i data-lucide="grid-3x3" class="icon"></i>
+                </button>
+                <button id="list-btn" onclick="setViewMode('list')" class="btn btn-sm btn-ghost">
+                  <i data-lucide="list" class="icon"></i>
+                </button>
+              </div>
+            </div>
+          </div>
+          
+          <!-- Breadcrumbs -->
+          <div class="flex items-center gap-2 mt-4 text-sm hidden md:flex">
+            <button onclick="window.location.href='/files/'" class="btn btn-ghost btn-sm h-auto p-1 text-gray-600 hover:text-gray-900">
+              <i data-lucide="home" class="icon"></i>
+            </button>
+            <i data-lucide="chevron-right" class="icon text-gray-400"></i>
+            <span class="text-gray-900 truncate">${this.escapeHtml(torrentName)}</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="p-4">
+        <div class="mb-8">
+          <h2 class="text-lg font-semibold mb-4 flex items-center gap-2">
+            <i data-lucide="file-video" class="icon-lg"></i>
+            Files
+          </h2>
+          <!-- Grid View -->
+          <div id="grid-view" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4 hidden">
+            ${fileItems.map(item => item.gridCard).join('') || '<div class="col-span-full text-center text-muted-foreground py-12">No files available</div>'}
+          </div>
+          
+          <!-- List View -->
+          <div id="list-view" class="space-y-2">
+            ${fileItems.map(item => item.listRow).join('') || '<div class="text-center text-muted-foreground py-12">No files available</div>'}
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  
+  ${this.getBaseScripts()}
+</body>
+</html>`;
+  }
+
+  // Generate file details page - shows details for a specific file
+  async generateFileDetailsPage(torrentName: string, fileName: string, file: any): Promise<string> {
+    const strmFilename = this.generateSTRMFilename(fileName);
+    const { title, year, season, episode } = this.extractMediaInfo(fileName);
+    
+    return `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>${this.escapeHtml(fileName)} - File Details</title>
+  ${this.getBaseStyles()}
+</head>
+<body class="min-h-screen bg-gray-50">
+  <div class="flex h-screen w-full">
+    ${this.generateSidebar('files')}
+    
+    <div class="flex-1 min-w-0 overflow-auto bg-gray-50">
+      <div class="bg-white border-b">
+        <div class="px-4 py-4">
+          <div class="flex items-center justify-between">
+            <div>
+              <h1 class="text-2xl font-bold text-gray-900 hidden md:block">File Details</h1>
+              <p class="text-gray-600">${this.escapeHtml(title || fileName)}</p>
+            </div>
+          </div>
+          
+          <div class="flex items-center gap-2 mt-4 text-sm">
+            <button onclick="window.location.href='/files/'" class="btn btn-ghost btn-sm h-auto p-1 text-gray-600 hover:text-gray-900">
+              <i data-lucide="home" class="icon"></i>
+            </button>
+            <i data-lucide="chevron-right" class="icon text-gray-400"></i>
+            <button onclick="window.location.href='/files/${encodeURIComponent(torrentName)}/'" class="btn btn-ghost btn-sm h-auto p-1 text-gray-600 hover:text-gray-900 truncate max-w-xs">
+              ${this.escapeHtml(torrentName)}
+            </button>
+            <i data-lucide="chevron-right" class="icon text-gray-400"></i>
+            <span class="text-gray-900 truncate max-w-xs">${this.escapeHtml(fileName)}</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="p-4">
+        <div class="card p-6">
+          <div class="space-y-6">
+            <div class="text-center">
+              <div class="w-20 h-28 bg-gradient-to-br from-blue-200 to-blue-300 rounded mx-auto mb-4 flex items-center justify-center">
+                <i data-lucide="film" class="icon-2xl text-blue-600"></i>
+              </div>
+              <h2 class="text-xl font-bold">${this.escapeHtml(title || fileName)}</h2>
+              ${year ? `<p class="text-muted-foreground">${year}</p>` : ''}
+              ${season && episode ? `<p class="text-sm text-muted-foreground">Season ${season}, Episode ${episode}</p>` : ''}
+            </div>
+            
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div>
+                <h3 class="font-semibold mb-3">File Information</h3>
+                <dl class="space-y-2">
+                  <div class="flex justify-between">
+                    <dt class="text-sm text-muted-foreground">Original Name:</dt>
+                    <dd class="text-sm font-medium truncate ml-2">${this.escapeHtml(fileName)}</dd>
+                  </div>
+                  <div class="flex justify-between">
+                    <dt class="text-sm text-muted-foreground">STRM Name:</dt>
+                    <dd class="text-sm font-medium truncate ml-2">${this.escapeHtml(strmFilename)}</dd>
+                  </div>
+                  <div class="flex justify-between">
+                    <dt class="text-sm text-muted-foreground">Size:</dt>
+                    <dd class="text-sm font-medium">${this.formatBytes(file.bytes)}</dd>
+                  </div>
+                  <div class="flex justify-between">
+                    <dt class="text-sm text-muted-foreground">Status:</dt>
+                    <dd class="text-sm font-medium">
+                      <span class="badge badge-success">${file.state}</span>
+                    </dd>
+                  </div>
+                </dl>
+              </div>
+              
+              <div>
+                <h3 class="font-semibold mb-3">Actions</h3>
+                <div class="space-y-3">
+                  <a href="/files/${encodeURIComponent(torrentName)}/${encodeURIComponent(fileName)}/${encodeURIComponent(strmFilename)}" 
+                     class="btn btn-primary w-full">
+                    <i data-lucide="download" class="icon mr-2"></i>
+                    Download STRM File
+                  </a>
+                  ${file.link ? `
+                  <a href="${file.link}" target="_blank" class="btn btn-secondary w-full">
+                    <i data-lucide="external-link" class="icon mr-2"></i>
+                    Direct Download Link
+                  </a>
+                  ` : ''}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  
+  ${this.getBaseScripts()}
+</body>
+</html>`;
   }
 }

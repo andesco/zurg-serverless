@@ -93,6 +93,24 @@ export class STRMCacheManager {
     });
     return cachedEntry.download_url as string;
   }
+
+  // Get STRM info even if expired (for refresh purposes)
+  async getSTRMInfo(strmCode: string): Promise<{ torrentId: string; filename: string; directory: string } | null> {
+    const cachedEntry = await this.db
+      .prepare('SELECT torrent_id, filename, directory FROM strm_cache WHERE strm_code = ?')
+      .bind(strmCode)
+      .first();
+    
+    if (!cachedEntry) {
+      return null;
+    }
+    
+    return {
+      torrentId: cachedEntry.torrent_id as string,
+      filename: cachedEntry.filename as string,
+      directory: cachedEntry.directory as string
+    };
+  }
   private async generateUniqueCode(): Promise<string> {
     let attempts = 0;
     const maxAttempts = 10;

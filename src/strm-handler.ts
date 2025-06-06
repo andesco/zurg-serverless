@@ -17,14 +17,40 @@ export async function handleSTRMDownload(
     }
 
     const cacheManager = new STRMCacheManager(env);
-    const downloadUrl = await cacheManager.resolveSTRMCode(strmCode);
+    let downloadUrl = await cacheManager.resolveSTRMCode(strmCode);
 
     if (!downloadUrl) {
-      console.log('STRM Download - Code not found or expired:', strmCode);
-      return new Response('STRM code not found or expired', { status: 404 });
+      console.log('STRM Download - Code not found or expired, trying to fetch fresh link:', strmCode);
+      
+      // Try to get the torrent and file info from the STRM mapping
+      const strmInfo = await cacheManager.getSTRMInfo(strmCode);
+      if (strmInfo) {
+        console.log(`🔗 Fetching fresh download link for expired STRM: ${strmInfo.filename}`);
+        
+        // Fetch fresh download link (one of the 3 allowed scenarios)
+        const { fetchFileDownloadLink } = await import('./handlers');
+        const freshLink = await fetchFileDownloadLink(strmInfo.torrentId, strmInfo.filename, env, storage);
+        
+        if (freshLink) {
+          // Update the STRM cache with fresh link
+          const newCode = await cacheManager.getOrCreateSTRMCode(
+            strmInfo.directory, 
+            strmInfo.torrentId, 
+            strmInfo.filename, 
+            freshLink
+          );
+          downloadUrl = freshLink;
+          console.log(`✅ Updated STRM cache with fresh download link`);
+        }
+      }
+      
+      if (!downloadUrl) {
+        console.log('STRM Download - Unable to resolve or refresh download link:', strmCode);
+        return new Response('STRM code not found or expired', { status: 404 });
+      }
     }
 
-    console.log('STRM Download - Redirecting to cached download URL');
+    console.log('STRM Download - Redirecting to download URL');
 
     return new Response(null, {
       status: 302,

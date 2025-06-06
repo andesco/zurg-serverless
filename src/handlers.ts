@@ -12,16 +12,16 @@ export async function maybeRefreshTorrents(env: Env): Promise<void> {
   const refreshInterval = parseInt(env.REFRESH_INTERVAL_SECONDS || '15') * 1000;
 
   if (!metadata || (now - metadata.lastRefresh) > refreshInterval) {
-    console.log('Refreshing torrents from Real Debrid...');
-    await refreshTorrentsLightweight(env, storage);
+    console.log('Refreshing torrent list from Real Debrid...');
+    await refreshTorrentList(env, storage);
   } else {
-    console.log('Using cached torrent data');
+    console.log('Using cached torrent list');
   }
 }
 
-// Fast refresh using only the torrent list API - no individual calls
-async function refreshTorrentsLightweight(env: Env, storage: StorageManager): Promise<void> {
-  console.log('=== Starting lightweight torrent refresh ===');
+// Light refresh - only fetch torrent list, no details
+async function refreshTorrentList(env: Env, storage: StorageManager): Promise<void> {
+  console.log('=== Starting torrent list refresh ===');
   const rd = new RealDebridClient(env);
   const pageSize = parseInt(env.TORRENTS_PAGE_SIZE || '1000');
   
@@ -36,24 +36,10 @@ async function refreshTorrentsLightweight(env: Env, storage: StorageManager): Pr
     );
     console.log(`Found ${downloadedTorrents.length} downloaded torrents`);
     
-    // Detect new torrents since last refresh
-    const currentTorrentIds = new Set(downloadedTorrents.map(t => t.id));
-    const previousTorrentIds = await storage.getCachedTorrentIds();
-    const newTorrentIds = previousTorrentIds 
-      ? Array.from(currentTorrentIds).filter(id => !previousTorrentIds.has(id))
-      : [];
-    
-    if (newTorrentIds.length > 0) {
-      console.log(`🆕 Detected ${newTorrentIds.length} new torrents: ${newTorrentIds.slice(0, 3).join(', ')}${newTorrentIds.length > 3 ? '...' : ''}`);
-    }
-    
-    // Build directory structure and enhance with cached details
-    const directoryMap: DirectoryMap = { __all__: {} };
+    // Build simple directory map - each torrent is its own directory
+    const directoryMap: DirectoryMap = {};
     
     for (const rdTorrent of downloadedTorrents) {
-      // Check if we have cached detailed info for this torrent
-      const cachedDetails = await storage.getCachedTorrentDetails(rdTorrent.id);
-      
       const torrent = {
         id: rdTorrent.id,
         name: rdTorrent.filename,
@@ -61,32 +47,143 @@ async function refreshTorrentsLightweight(env: Env, storage: StorageManager): Pr
         hash: rdTorrent.hash,
         added: rdTorrent.added,
         ended: rdTorrent.ended,
-        selectedFiles: cachedDetails?.selectedFiles || {}, // Use cached if available
-        downloadedIDs: cachedDetails?.downloadedIDs || [],  // Use cached if available
+        selectedFiles: {}, // Empty - will be fetched on demand
+        downloadedIDs: [],
         state: 'ok_torrent' as const,
         totalSize: rdTorrent.bytes
       };
       
-      directoryMap.__all__[torrent.id] = torrent;
+      // Use exact torrent name as directory
+      const directoryName = rdTorrent.filename;
+      directoryMap[directoryName] = { [rdTorrent.id]: torrent };
     }
     
-    // Always fetch details for 10 torrents on every worker call (proactive caching)
-    await fetchTorrentDetailsByPriority(downloadedTorrents, env, storage);
+    console.log(`✅ Torrent list refresh complete: ${downloadedTorrents.length} torrents processed`);
     
-    console.log(`✅ Lightweight refresh complete: ${downloadedTorrents.length} torrents processed (only 1 API call!)`);
-    console.log(`🔄 Background caching: 10 torrents queued for detail fetching`);
-    
-    // Save to database with updated torrent IDs
+    // Save to database
     await storage.setDirectoryMap(directoryMap);
     await storage.setCacheMetadata({
       lastRefresh: Date.now(),
       libraryChecksum: JSON.stringify(downloadedTorrents.map(t => t.id).sort()).length.toString(),
     });
-    await storage.saveTorrentIds(currentTorrentIds);
     
   } catch (error) {
-    console.error('❌ Failed to refresh torrents:', error);
+    console.error('❌ Failed to refresh torrent list:', error);
     throw error;
+  }
+}
+
+// Fetch individual torrent details on demand (file list only, no download links)
+export async function fetchTorrentDetails(torrentName: string, env: Env, storage: StorageManager): Promise<Torrent | null> {
+  console.log(`=== Fetching details for torrent ${torrentName} ===`);
+  
+  // First get the torrent from the directory to find its ID
+  const directoryTorrents = await storage.getDirectory(torrentName);
+  if (!directoryTorrents || Object.keys(directoryTorrents).length === 0) {
+    console.log(`❌ Torrent directory ${torrentName} not found`);
+    return null;
+  }
+  
+  const torrent = Object.values(directoryTorrents)[0];
+  const torrentId = torrent.id;
+  
+  // Check if we have cached details (within 7 days)
+  if (torrent.cacheTimestamp) {
+    const cacheAge = Date.now() - torrent.cacheTimestamp;
+    const sevenDays = 7 * 24 * 60 * 60 * 1000;
+    
+    if (cacheAge < sevenDays && Object.keys(torrent.selectedFiles).length > 0) {
+      console.log(`✅ Using cached details for torrent ${torrentName} (${Math.round(cacheAge / (1000 * 60 * 60))}h old)`);
+      return torrent;
+    } else {
+      console.log(`♻️ Cached details expired or empty for torrent ${torrentName} (${Math.round(cacheAge / (1000 * 60 * 60))}h old)`);
+    }
+  }
+  
+  // Fetch fresh details from Real-Debrid (file list only, preserve existing download links)
+  try {
+    const rd = new RealDebridClient(env);
+    const torrentInfo = await rd.getTorrentInfo(torrentId);
+    
+    if (!torrentInfo) {
+      console.log(`❌ Torrent ${torrentId} not found on Real-Debrid`);
+      return null;
+    }
+    
+    const detailedTorrent = convertToTorrent(torrentInfo);
+    
+    // If we had existing cached files with download links, preserve those links
+    if (torrent.selectedFiles && Object.keys(torrent.selectedFiles).length > 0) {
+      console.log(`🔗 Preserving existing download links for ${Object.keys(torrent.selectedFiles).length} files`);
+      
+      // Merge: use new file info but preserve existing download links if they exist
+      for (const [filename, newFile] of Object.entries(detailedTorrent.selectedFiles)) {
+        const existingFile = torrent.selectedFiles[filename];
+        if (existingFile && existingFile.link) {
+          // Preserve existing download link
+          newFile.link = existingFile.link;
+          newFile.ended = existingFile.ended; // Preserve link timestamp
+        }
+      }
+    }
+    
+    detailedTorrent.cacheTimestamp = Date.now(); // Add cache timestamp
+    
+    // Save to cache
+    await storage.saveTorrentDetails(torrentId, detailedTorrent);
+    
+    console.log(`✅ Fetched and cached details for torrent ${torrentName} (${Object.keys(detailedTorrent.selectedFiles).length} files)`);
+    return detailedTorrent;
+    
+  } catch (error) {
+    console.error(`❌ Failed to fetch details for torrent ${torrentName}:`, error);
+    return null;
+  }
+}
+
+// Fetch fresh download link for a specific file (only when needed)
+export async function fetchFileDownloadLink(torrentId: string, filename: string, env: Env, storage: StorageManager): Promise<string | null> {
+  console.log(`=== Fetching download link for ${filename} in torrent ${torrentId} ===`);
+  
+  try {
+    const rd = new RealDebridClient(env);
+    const torrentInfo = await rd.getTorrentInfo(torrentId);
+    
+    if (!torrentInfo) {
+      console.log(`❌ Torrent ${torrentId} not found on Real-Debrid`);
+      return null;
+    }
+    
+    const detailedTorrent = convertToTorrent(torrentInfo);
+    const file = detailedTorrent.selectedFiles[filename];
+    
+    if (!file || !file.link) {
+      console.log(`❌ File ${filename} not found or no download link available`);
+      return null;
+    }
+    
+    // Update the cached torrent with the fresh download link
+    const directoryName = torrentInfo.filename; // Use exact torrent name as directory
+    const existingTorrents = await storage.getDirectory(directoryName);
+    
+    if (existingTorrents) {
+      const existingTorrent = Object.values(existingTorrents)[0];
+      if (existingTorrent && existingTorrent.selectedFiles[filename]) {
+        // Update just this file's download link
+        existingTorrent.selectedFiles[filename].link = file.link;
+        existingTorrent.selectedFiles[filename].ended = file.ended;
+        
+        // Save updated torrent back to cache
+        await storage.saveTorrentDetails(torrentId, existingTorrent);
+        console.log(`✅ Updated download link for ${filename}`);
+      }
+    }
+    
+    return file.link;
+    
+  } catch (error) {
+    console.error(`❌ Failed to fetch download link for ${filename}:`, error);
+    return null;
   }
 }
 
@@ -207,5 +304,180 @@ export async function handleSTRMPriorityRequest(torrentId: string, env: Env, sto
     // Request priority for next background fetch
     await storage.requestSTRMPriority(torrentId);
     return null;
+  }
+}
+
+// Enhanced handler for immediate torrent detail fetching when browsing directories
+export async function handleDirectoryPriorityRequest(directory: string, env: Env, storage: StorageManager): Promise<Record<string, Torrent>> {
+  console.log(`🔥 Directory priority request for: ${directory}`);
+  
+  // Get the basic torrents first
+  const basicTorrents = await storage.getDirectory(directory);
+  if (!basicTorrents) {
+    console.log(`❌ Directory ${directory} not found`);
+    return {};
+  }
+  
+  console.log(`📁 Found ${Object.keys(basicTorrents).length} torrents in ${directory}`);
+  
+  // Check which torrents need detailed file information
+  const torrentsNeedingDetails: string[] = [];
+  for (const [accessKey, torrent] of Object.entries(basicTorrents)) {
+    const fileCount = Object.keys(torrent.selectedFiles || {}).length;
+    if (fileCount === 0) {
+      torrentsNeedingDetails.push(torrent.id);
+    }
+  }
+  
+  console.log(`🔍 ${torrentsNeedingDetails.length} torrents need file details`);
+  
+  if (torrentsNeedingDetails.length > 0) {
+    // Fetch details for torrents that don't have file information
+    const rd = new RealDebridClient(env);
+    const fetchLimit = Math.min(torrentsNeedingDetails.length, 20); // Limit to 20 to avoid timeout
+    
+    console.log(`📥 Fetching details for ${fetchLimit} torrents...`);
+    
+    for (let i = 0; i < fetchLimit; i++) {
+      const torrentId = torrentsNeedingDetails[i];
+      try {
+        console.log(`📥 Fetching details for torrent ${i + 1}/${fetchLimit}: ${torrentId}`);
+        
+        const torrentInfo = await rd.getTorrentInfo(torrentId);
+        const detailedTorrent = convertToTorrent(torrentInfo);
+        
+        if (detailedTorrent && Object.keys(detailedTorrent.selectedFiles).length > 0) {
+          await storage.cacheTorrentDetails(torrentId, detailedTorrent, null);
+          
+          // Update the torrent in our result
+          for (const [accessKey, torrent] of Object.entries(basicTorrents)) {
+            if (torrent.id === torrentId) {
+              basicTorrents[accessKey] = detailedTorrent;
+              break;
+            }
+          }
+          
+          console.log(`✅ Cached ${Object.keys(detailedTorrent.selectedFiles).length} files for ${detailedTorrent.name}`);
+        }
+      } catch (error) {
+        console.error(`❌ Failed to fetch details for torrent ${torrentId}:`, error);
+        // Continue with next torrent
+      }
+    }
+    
+    console.log(`✅ Directory priority fetch complete: ${fetchLimit} torrents processed`);
+  }
+  
+  return basicTorrents;
+}
+// Enhanced handler for individual torrent requests with immediate file detail fetching
+export async function handleTorrentPriorityRequest(directory: string, torrentName: string, env: Env, storage: StorageManager): Promise<{ torrent: Torrent; accessKey: string } | null> {
+  console.log(`🔥 Torrent priority request for: ${directory}/${torrentName}`);
+  
+  // Get the basic torrent first
+  const result = await storage.getTorrentByName(directory, torrentName);
+  if (!result) {
+    console.log(`❌ Torrent ${directory}/${torrentName} not found`);
+    return null;
+  }
+  
+  const { torrent, accessKey } = result;
+  const fileCount = Object.keys(torrent.selectedFiles || {}).length;
+  
+  console.log(`🎬 Found torrent: ${torrent.name} with ${fileCount} files`);
+  
+  // If no files cached, fetch them immediately
+  if (fileCount === 0) {
+    console.log(`📥 Fetching file details for torrent: ${torrent.id}`);
+    
+    try {
+      const rd = new RealDebridClient(env);
+      const torrentInfo = await rd.getTorrentInfo(torrent.id);
+      const detailedTorrent = convertToTorrent(torrentInfo);
+      
+      if (detailedTorrent && Object.keys(detailedTorrent.selectedFiles).length > 0) {
+        await storage.cacheTorrentDetails(torrent.id, detailedTorrent, null);
+        console.log(`✅ Cached ${Object.keys(detailedTorrent.selectedFiles).length} files for ${detailedTorrent.name}`);
+        
+        return { torrent: detailedTorrent, accessKey };
+      } else {
+        console.log(`⚠️ No files found in torrent: ${torrent.name}`);
+      }
+    } catch (error) {
+      console.error(`❌ Failed to fetch details for torrent ${torrent.id}:`, error);
+      // Return basic torrent even if detail fetch failed
+    }
+  }
+  
+  return { torrent, accessKey };
+}
+// Simple test version of priority fetching
+export async function testDirectoryPriorityRequest(directory: string, env: Env, storage: StorageManager): Promise<Record<string, Torrent>> {
+  console.log(`🧪 TEST: Directory priority request for: ${directory}`);
+  
+  try {
+    // Get the basic torrents first
+    const basicTorrents = await storage.getDirectory(directory);
+    if (!basicTorrents) {
+      console.log(`❌ TEST: Directory ${directory} not found`);
+      return {};
+    }
+    
+    console.log(`📁 TEST: Found ${Object.keys(basicTorrents).length} torrents in ${directory}`);
+    
+    // Check which torrents need detailed file information
+    const torrentsNeedingDetails: string[] = [];
+    for (const [accessKey, torrent] of Object.entries(basicTorrents)) {
+      const fileCount = Object.keys(torrent.selectedFiles || {}).length;
+      console.log(`🔍 TEST: Torrent ${torrent.name} has ${fileCount} files cached`);
+      if (fileCount === 0) {
+        torrentsNeedingDetails.push(torrent.id);
+      }
+    }
+    
+    console.log(`🔍 TEST: ${torrentsNeedingDetails.length} torrents need file details`);
+    
+    if (torrentsNeedingDetails.length > 0) {
+      // For testing, limit to just 2 torrents to avoid timeouts
+      const testLimit = Math.min(torrentsNeedingDetails.length, 2);
+      console.log(`📥 TEST: Fetching details for ${testLimit} torrents...`);
+      
+      const rd = new RealDebridClient(env);
+      
+      for (let i = 0; i < testLimit; i++) {
+        const torrentId = torrentsNeedingDetails[i];
+        console.log(`📥 TEST: Fetching details for torrent ${i + 1}/${testLimit}: ${torrentId}`);
+        
+        try {
+          const torrentInfo = await rd.getTorrentInfo(torrentId);
+          const detailedTorrent = convertToTorrent(torrentInfo);
+          
+          if (detailedTorrent && Object.keys(detailedTorrent.selectedFiles).length > 0) {
+            await storage.cacheTorrentDetails(torrentId, detailedTorrent, null);
+            
+            // Update the torrent in our result
+            for (const [accessKey, torrent] of Object.entries(basicTorrents)) {
+              if (torrent.id === torrentId) {
+                basicTorrents[accessKey] = detailedTorrent;
+                break;
+              }
+            }
+            
+            console.log(`✅ TEST: Cached ${Object.keys(detailedTorrent.selectedFiles).length} files for ${detailedTorrent.name}`);
+          }
+        } catch (error) {
+          console.error(`❌ TEST: Failed to fetch details for torrent ${torrentId}:`, error);
+          // Continue with next torrent
+        }
+      }
+      
+      console.log(`✅ TEST: Priority fetch complete: ${testLimit} torrents processed`);
+    }
+    
+    return basicTorrents;
+  } catch (error) {
+    console.error(`❌ TEST: Directory priority request failed:`, error);
+    // Fall back to basic method
+    return await storage.getDirectory(directory) || {};
   }
 }

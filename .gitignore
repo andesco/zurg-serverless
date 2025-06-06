@@ -60,5 +60,6 @@ wrangler.local.toml
 node_modules/
 .wrangler/
 
-# Other Files
+# Backups
 *.backup
+backup_*_*/

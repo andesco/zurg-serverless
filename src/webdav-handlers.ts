@@ -44,11 +44,14 @@ export async function handleWebDAVRequest(
     }
 
   if (pathSegments.length === 1) {
-    // Directory listing (e.g., /dav/__all__/)
-    const directory = decodeURIComponent(pathSegments[0]);
-    const torrents = await storage.getDirectory(directory);
+    // Torrent files listing (e.g., /dav/TorrentName/)
+    const torrentName = decodeURIComponent(pathSegments[0]);
     
-    if (!torrents) {
+    // Fetch torrent details on demand
+    const { fetchTorrentDetails } = await import('./handlers');
+    const torrent = await fetchTorrentDetails(torrentName, env, storage);
+    
+    if (!torrent || Object.keys(torrent.selectedFiles).length === 0) {
       return new Response(`<?xml version="1.0" encoding="utf-8"?>
 <d:error xmlns:d="DAV:">
   <d:resource-not-found/>
@@ -58,7 +61,7 @@ export async function handleWebDAVRequest(
       });
     }
     
-    const xml = webdav.generateDirectoryResponse(torrents, mountType);
+    const xml = webdav.generateTorrentFilesResponse(torrent, mountType);
     
     return new Response(xml, {
       status: 207,
