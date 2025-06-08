@@ -42,7 +42,7 @@ npm run dev
 
 For production deployment:
 ```bash
-npm run deploy
+npm run deploy-local
 wrangler secret put RD_TOKEN
 wrangler secret put USERNAME
 wrangler secret put PASSWORD
@@ -77,7 +77,7 @@ wrangler secret put PASSWORD        # optional: basic auth. password
 ```bash
 npm run dev                 # local development
 npm run deploy-staging      # deploy to staging
-npm run deploy              # deploy to production
+npm run deploy-local        # deploy to production
 ```
 
 The project uses both:

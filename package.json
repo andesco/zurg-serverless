@@ -5,8 +5,9 @@
   "main": "src/worker.ts",
   "scripts": {
     "dev": "pkill -f workerd 2>/dev/null || true && wrangler dev --config wrangler.local.toml",
-    "deploy": "wrangler deploy --config wrangler.local.toml --env production",
-    "deploy-staging": "wrangler deploy --config wrangler.local.toml --env staging"
+    "deploy-local": "wrangler deploy --config wrangler.local.toml --env production",
+    "deploy-staging": "wrangler deploy --config wrangler.local.toml --env staging",
+    "test-deploy-button": "bash scripts/test-deploy-button.sh"
   },
   "keywords": [
     "real-debrid",

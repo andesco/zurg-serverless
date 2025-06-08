@@ -21,6 +21,19 @@
 5. **STRM Handler** - Generates streaming files for media players
 6. **Real-Debrid Client** - API integration
 
+## Deployment Methods
+
+### Deploy to Cloudflare Button
+- Uses template `wrangler.toml` configuration
+- Cloudflare runs `npx wrangler deploy` automatically
+- For new users and one-click deployment
+
+### Manual Deployment
+- Uses `wrangler.local.toml` with environment configs
+- Run `npm run deploy-local` for production
+- Run `npm run deploy-staging` for staging
+- For development and testing
+
 ## Project Structure
 
 ```
@@ -82,7 +95,7 @@
 ```bash
 # Development
 npm run dev                    # Local development server
-npm run deploy                 # Deploy to production
+npm run deploy-local           # Deploy to production (manual deployment)
 npm run deploy-staging         # Deploy to staging
 
 # Database management
