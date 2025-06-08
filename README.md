@@ -21,6 +21,7 @@ A modern, serverless Real-Debrid WebDAV server with HTML browser interface and .
 - **Consistent URLs**: Links remain stable while redirecting to up-to-date Real Debrid download links.
 - **Intelligent caching**: 7-day URL caching with automatic regeneration
 - **Error fallback**: .STRM redirects to an error video when media is unavailable.
+- **Accurate timestamps**: .STRM file dates match when torrents were added to Real-Debrid for proper "recently added" features in Infuse
 
 ### 🌐 **Serverless Architecture**
 - **Cloudflare Workers**: lobal edge computing
