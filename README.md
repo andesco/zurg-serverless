@@ -12,20 +12,20 @@ A modern, serverless Real-Debrid WebDAV server with HTML browser interface and .
 
 ## Features
 
-### 🎯 **Dual Interface**
+### Dual Interface
 - **HTML browser**: Modern web interface for browsing your media library
 - **WebDAV endpoints**: Compatible with media players, optimized for Infuse
 
-### ⚡ **Smart STRM Streaming System**
+### Smart STRM Streaming System
 - **.strm files only**: Each contains a short link (e.g., `/strm/ABCD1234WXYZ5678`)
 - **Consistent URLs**: Links remain stable while redirecting to up-to-date Real Debrid download links.
 - **Intelligent caching**: 7-day URL caching with automatic regeneration
 - **Error fallback**: .STRM redirects to an error video when media is unavailable.
 - **Accurate timestamps**: .STRM file dates match when torrents were added to Real-Debrid for proper "recently added" features in Infuse
 
-### 🌐 **Serverless Architecture**
-- **Cloudflare Workers**: lobal edge computing
-- **Cloudflare D1**: distributed SQLite database
+### Serverless Architecture
+- **Cloudflare Workers**: Global edge computing
+- **Cloudflare D1**: Distributed SQLite database
 
 ## Quick Deploy
 
@@ -53,15 +53,15 @@ npm run deploy
 wrangler secret put RD_TOKEN
 ```
 
-## 🎯 Usage
+## Usage
 
 | Interface | URL | Purpose |
 |-----------|-----|---------|
 | **HTML Browser** | `https://your-worker.workers.dev/` | web interface |
 | **WebDAV** | `https://your-worker.workers.dev/dav` | standard endpoint|
-| **WebDAV&nbsp;for&nbsp;Infuse** | `https://your-worker.workers.dev/infuse` | optimized endpoint |
+| **WebDAV for Infuse** | `https://your-worker.workers.dev/infuse` | optimized endpoint |
 
-## ⚙️ Configuration
+## Configuration
 
 ### Required Secrets
 ```bash
@@ -78,7 +78,7 @@ wrangler secret put PASSWORD        # optional: basic auth. password
 | `API_TIMEOUT_SECONDS` | `30` | Request timeout |
 | `HIDE_BROKEN_TORRENTS` | `false` | Hide incomplete torrents |
 
-## 🛠️ Development
+## Development
 
 ```bash
 npm run dev                 # local development
