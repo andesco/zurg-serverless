@@ -453,7 +453,7 @@ export class HTMLBrowser {
   private generateSidebar(activePage: string): string {
     const navItems = [
       { href: '/', icon: 'home', label: 'Home', id: 'home' },
-      { href: '/files/', icon: 'folder', label: 'Files', id: 'files' },
+      { href: '/files/', icon: 'folder', label: 'File Browser', id: 'files' },
       { href: '/dav/', icon: 'server', label: 'WebDAV', id: 'webdav' },
       { href: '/infuse/', icon: 'server', label: 'WebDAV for Infuse', id: 'infuse' }
     ];
@@ -483,9 +483,8 @@ export class HTMLBrowser {
                 <a href="${item.href}"
                    class="flex items-center gap-3 rounded-lg px-3 py-2 text-muted-foreground transition-all hover:text-foreground hover:bg-accent ${
                      activePage === item.id ? 'bg-accent text-accent-foreground' : ''
-                   } ${item.id === 'infuse' ? 'hover:text-orange-600' : ''}"
-                   ${item.id === 'infuse' ? 'style="color: #ea580c;"' : ''}>
-                  <i data-lucide="${item.icon}" class="icon ${item.id === 'infuse' ? 'text-orange-600' : ''}"></i>
+                   }">
+                  <i data-lucide="${item.icon}" class="icon"></i>
                   <span>${item.label}</span>
                 </a>
               `).join('')}
@@ -1338,8 +1337,8 @@ export class HTMLBrowser {
             <div class="p-3 rounded-lg border border-border bg-muted/50 hover:bg-muted transition-colors">
               <div class="flex items-center justify-between">
                 <div class="flex items-center gap-3">
-                  <div class="p-2 rounded-lg bg-purple-500/10 text-purple-600 dark:text-purple-400">
-                    <i data-lucide="tv" class="icon"></i>
+                  <div class="p-2 rounded-lg bg-orange-500/10 text-orange-600 dark:text-orange-400">
+                    <i data-lucide="server" class="icon"></i>
                   </div>
                   <div>
                     <h4 class="font-medium text-sm">WebDAV for Infuse</h4>

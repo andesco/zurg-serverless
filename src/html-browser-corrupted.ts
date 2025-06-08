@@ -469,7 +469,7 @@ export class HTMLBrowser {
       { href: '/', icon: 'home', label: 'Home', id: 'home' },
       { href: '/html/', icon: 'film', label: 'HTML File Browser', id: 'html' },
       { href: '/dav/', icon: 'server', label: 'WebDAV', id: 'webdav' },
-      { href: '/infuse/', icon: 'tv', label: 'WebDAV for Infuse', id: 'infuse' }
+      { href: '/infuse/', icon: 'server', label: 'WebDAV for Infuse', id: 'infuse' }
     ];
 
     return `
@@ -1261,8 +1261,8 @@ export class HTMLBrowser {
                     <div class="p-3 rounded-lg border border-border bg-muted/50 hover:bg-muted transition-colors">
                       <div class="flex items-center justify-between">
                         <div class="flex items-center gap-3">
-                          <div class="p-2 rounded-lg bg-purple-500/10 text-purple-600 dark:text-purple-400">
-                            <i data-lucide="tv" class="icon"></i>
+                          <div class="p-2 rounded-lg bg-orange-500/10 text-orange-600 dark:text-orange-400">
+                            <i data-lucide="server" class="icon"></i>
                           </div>
                           <div>
                             <h4 class="font-medium text-sm">WebDAV for Infuse</h4>

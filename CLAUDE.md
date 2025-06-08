@@ -426,6 +426,21 @@ cd /Users/Andrew/Developer/zurg-serverless
 npm run dev
 ```
 
+### 2025-06-07 - UI Consistency and Branding Updates
+- ✅ **Sidebar: Changed "Files" to "File Browser"** for better clarity and consistency
+- ✅ **Sidebar: Removed orange styling from "WebDAV for Infuse"** - now matches other sidebar items
+- ✅ **Root page: Updated "WebDAV for Infuse" card styling**:
+  - Changed from purple (`bg-purple-500/10 text-purple-600`) to orange (`bg-orange-500/10 text-orange-600`) 
+  - Changed icon from `tv` to `server` for consistency with other WebDAV card
+- ✅ **Updated both main and backup HTML browser files** for consistency
+
+#### UI Color Scheme Standardization:
+- **Sidebar items**: All use standard muted colors with accent on hover
+- **WebDAV Standard card**: Blue/gray theme with `server` icon
+- **WebDAV for Infuse card**: Orange theme with `server` icon (distinguishes it as Infuse-specific)
+- **Consistent branding**: Orange highlights Infuse-specific features while maintaining professional look
+
+
 ### Implementation Status
 - ✅ Root cause identified (2025-06-07)
 - ⚠️ **ACTION REQUIRED**: Implement prevention scripts
