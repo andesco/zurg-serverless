@@ -1,24 +1,16 @@
 {
   "name": "zurg-serverless",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "A serverless Real Debrid WebDAV server with HTML file browser and .STRM file-based streaming, running as a Cloudflare Worker, using Cloudflare D1.",
   "main": "src/worker.ts",
   "scripts": {
-    "dev": "wrangler dev --config wrangler.local.toml",
-    "dev-safe": "pkill -f workerd 2>/dev/null || true && sleep 1 && wrangler dev --config wrangler.local.toml",
-    "dev-clean": "pkill -f workerd && sleep 2 && wrangler dev --config wrangler.local.toml",
+    "dev": "pkill -f workerd 2>/dev/null || true && wrangler dev --config wrangler.local.toml",
     "dev-template": "wrangler dev",
     "deploy": "wrangler deploy --config wrangler.local.toml --env production",
     "deploy-staging": "wrangler deploy --config wrangler.local.toml --env staging",
-    "deploy-template": "wrangler deploy",
-    "setup": "node scripts/setup.js",
-    "setup-d1": "node scripts/setup-d1.js",
-    "test": "wrangler dev --local",
     "types": "wrangler types",
-    "kill-workerd": "pkill -f workerd && echo 'Killed workerd processes' || echo 'No workerd processes found'",
-    "dev-status": "bash scripts/check-workerd.sh",
-    "dev-check": "ps aux | grep workerd | grep -v grep || echo '✅ No workerd processes running'",
-    "emergency-cleanup": "bash scripts/emergency-cleanup.sh"
+    "cleanup": "bash scripts/emergency-cleanup.sh",
+    "status": "bash scripts/check-workerd.sh"
   },
   "keywords": [
     "real-debrid",
