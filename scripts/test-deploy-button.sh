@@ -29,6 +29,12 @@ if [[ $action == "2" ]]; then
     
     # List and delete all test workers
     echo -e "${BLUE}Finding test workers...${NC}"
+    echo -e "${CYAN}Debug: Full wrangler list output:${NC}"
+    npx wrangler list 2>/dev/null || echo "Wrangler list failed"
+    echo ""
+    echo -e "${CYAN}Debug: Grep results:${NC}"
+    npx wrangler list 2>/dev/null | grep "$TEST_PREFIX" || echo "No matches found"
+    echo ""
     test_workers=$(npx wrangler list 2>/dev/null | grep "$TEST_PREFIX" | awk '{print $2}' || true)
     
     if [[ -n $test_workers ]]; then
@@ -53,6 +59,12 @@ if [[ $action == "2" ]]; then
     # List and delete all test D1 databases
     echo ""
     echo -e "${BLUE}Finding test D1 databases...${NC}"
+    echo -e "${CYAN}Debug: Full wrangler d1 list output:${NC}"
+    npx wrangler d1 list 2>/dev/null || echo "Wrangler d1 list failed"
+    echo ""
+    echo -e "${CYAN}Debug: Grep results:${NC}"
+    npx wrangler d1 list 2>/dev/null | grep "$TEST_PREFIX" || echo "No matches found"
+    echo ""
     test_databases=$(npx wrangler d1 list 2>/dev/null | grep "$TEST_PREFIX" | awk '{print $1}' || true)
     
     if [[ -n $test_databases ]]; then
