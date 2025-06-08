@@ -16,15 +16,16 @@ NC='\033[0m' # No Color
 DEPLOY_URL="https://deploy.workers.cloudflare.com/?url=https://github.com/andesco/zurg-serverless"
 TEST_PREFIX="zurg-serverless-test"
 
-echo -e "${CYAN}Deploy Button Test Script${NC}"
+echo -e "${CYAN}Test: Deploy with Cloudflare button${NC}"
 echo "==============================="
 echo ""
-echo -e "${YELLOW}IMPORTANT: When the deploy page opens, name your worker:${NC}"
-echo "   ${TEST_PREFIX}-[your-suffix]"
+echo    "To automate this this, the project name must begin with:"
 echo ""
-echo "   Examples: zurg-serverless-test-123, zurg-serverless-test-feature"
+echo -e "   ${YELLOW}${TEST_PREFIX}${NC}"
 echo ""
-read -p "$(echo -e ${GREEN}Confirm you understand [y/N]: ${NC})" confirm
+echo    "   (example: zurg-serverless-test-01)"
+echo ""
+read -p "$(echo -e ${GREEN}Deploy to Cloudflare in web browser? [y/N]: ${NC})" confirm
 
 if [[ $confirm != "y" && $confirm != "Y" ]]; then
     echo -e "${RED}Test cancelled${NC}"
@@ -32,8 +33,8 @@ if [[ $confirm != "y" && $confirm != "Y" ]]; then
 fi
 
 echo ""
-echo -e "${BLUE}Opening deploy page in browser...${NC}"
-echo "   URL: $DEPLOY_URL"
+echo -e "${BLUE}Deploy to Cloudflare opening in web browser:${NC}"
+echo "$DEPLOY_URL"
 
 # Open URL in default browser (cross-platform)
 if command -v open >/dev/null 2>&1; then
@@ -48,11 +49,12 @@ else
 fi
 
 echo ""
-echo -e "${YELLOW}Complete the deployment in your browser...${NC}"
+echo -e "${YELLOW}Complete the deployment in your browser:${NC}"
 echo "   1. Set worker name: ${TEST_PREFIX}-[suffix]"
-echo "   2. Configure secrets (RD_TOKEN, etc.)"
-echo "   3. Deploy the worker"
-echo "   4. Test that it works"
+echo "   2. Set database name: ${TEST_PREFIX}-[suffix]-db"
+echo "   3. Configure required secrets: RD_TOKEN"
+echo "   4. Configure optional secrets: USERNAME, PASSWORD"
+echo "   5. Confirm deployment."
 echo ""
 
 read -p "$(echo -e ${GREEN}Deployment completed and tested successfully? [y/N]: ${NC})" success
@@ -86,6 +88,21 @@ else
     echo -e "${YELLOW}Failed to delete worker (may not exist or access denied)${NC}"
 fi
 
+# Get D1 database name
+database_name="${worker_name}-db"
+read -p "$(echo -e ${BLUE}D1 database name [press enter for '$database_name']: ${NC})" custom_db
+if [[ -n $custom_db ]]; then
+    database_name="$custom_db"
+fi
+
+# Delete D1 Database
+echo -e "${CYAN}Deleting D1 Database: $database_name${NC}"
+if npx wrangler d1 delete "$database_name" --force 2>/dev/null; then
+    echo -e "${GREEN}D1 database deleted successfully${NC}"
+else
+    echo -e "${YELLOW}Failed to delete D1 database (may not exist or access denied)${NC}"
+fi
+
 # Get GitHub repo name
 github_repo="$worker_name"
 read -p "$(echo -e ${BLUE}GitHub repo name [press enter for '$github_repo']: ${NC})" custom_repo
@@ -104,4 +121,5 @@ echo -e "${GREEN}Deploy button test completed!${NC}"
 echo -e "${CYAN}Summary:${NC}"
 echo "   - Tested deploy button functionality"
 echo "   - Cleaned up Cloudflare Worker: $worker_name"
+echo "   - Cleaned up D1 Database: $database_name"
 echo "   - Manual cleanup needed for GitHub repo: $github_repo"
