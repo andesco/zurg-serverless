@@ -317,7 +317,23 @@ New structure:
 1 cached, 65 pending, 7 duplicates
 ```
 
-### 2025-06-08 - Deploy to Cloudflare Button: Secrets Limitation Fix
+### 2025-06-08 - Homepage: Username & Password Status + Add Missing Secrets Button
+- ✅ **Added "Username & Password:" status display** below "Real Debrid Token:" on homepage
+- ✅ **Joint status logic**: Shows "✓ Configured" (green) if both USERNAME and PASSWORD are set, "○ Optional" (yellow) if either is missing
+- ✅ **Added "Add Missing Secrets" button** when RD_TOKEN is missing (required secret)
+- ✅ **Button styling**: Matches existing design with external link icon and btn-outline styling
+- ✅ **Direct link**: Button points to Cloudflare docs for adding environment variables via dashboard
+- ✅ **Improved user experience**: Clear visual indication of configuration status and direct path to fix missing secrets
+
+#### Implementation Details:
+- **Status logic**: `hasAuth = hasUsername && hasPassword` - both must be present for "Configured" status
+- **Button trigger**: Only shows when `!hasToken` (RD_TOKEN missing) since it's the only required secret
+- **Color coding**: Green (configured), Yellow (optional/missing), Red (required missing)
+- **URL**: Links to `https://developers.cloudflare.com/workers/configuration/environment-variables/#add-environment-variables-via-the-dashboard`
+
+This enhancement provides immediate visual feedback about configuration status and a direct path to resolve missing secrets after Deploy to Cloudflare button usage.
+
+
 - ❌ **DISCOVERED**: Deploy to Cloudflare button can ONLY create plaintext environment variables, NOT secrets
 - ❌ **ISSUE**: Sensitive data (RD_TOKEN, USERNAME, PASSWORD) was being deployed as visible plaintext
 - ✅ **FIXED**: Removed all sensitive variables from `deploy.json`
