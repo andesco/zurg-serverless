@@ -5,7 +5,7 @@
   "main": "src/worker.ts",
   "scripts": {
     "dev": "pkill -f workerd 2>/dev/null || true && wrangler dev --config wrangler.local.toml",
-    "deploy": "wrangler deploy --config wrangler.local.toml --env production",
+    "deploy": "wrangler deploy",
     "deploy-staging": "wrangler deploy --config wrangler.local.toml --env staging"
   },
   "keywords": [

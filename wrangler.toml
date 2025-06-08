@@ -18,3 +18,7 @@ TORRENTS_PAGE_SIZE = "1000"
 binding = "DB"
 database_name = "zurg-serverless-db"
 database_id = "" # Will be populated during deployment
+
+# Build configuration for Deploy to Cloudflare button
+[build]
+command = "npm install && npx wrangler deploy"

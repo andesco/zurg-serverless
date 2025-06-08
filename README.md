@@ -2,7 +2,7 @@
 
 A modern, serverless Real-Debrid WebDAV server with HTML browser interface and .STRM file-based streaming, running on Cloudflare Workers.
 
-[![Deploy to Cloudflare Workers](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/debridmediamanager/zurg-serverless)
+[![Deploy to Cloudflare Workers](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/andesco/zurg-serverless)
 
 ## Features
 
@@ -23,7 +23,7 @@ A modern, serverless Real-Debrid WebDAV server with HTML browser interface and .
 ## Quick Deploy
 
 ### One-Click Deployment
-[![Deploy to Cloudflare Workers](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/debridmediamanager/zurg-serverless)
+[![Deploy to Cloudflare Workers](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/andesco/zurg-serverless)
 
 You will be prompted for:
 - `RD_TOKEN` your Real Debrid API token
@@ -71,7 +71,6 @@ wrangler secret put PASSWORD        # optional: basic auth. password
 | `REFRESH_INTERVAL_SECONDS` | `15` | Torrent sync frequency |
 | `TORRENTS_PAGE_SIZE` | `1000` | Real-Debrid API page size |
 | `API_TIMEOUT_SECONDS` | `30` | Request timeout |
-| `HIDE_BROKEN_TORRENTS` | `false` | Hide incomplete torrents |
 
 ## Development
 
