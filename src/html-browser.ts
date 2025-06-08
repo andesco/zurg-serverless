@@ -1360,7 +1360,13 @@ export class HTMLBrowser {
 
   private generateConfigurationBlock(): string {
     const hasToken = !!this.env.RD_TOKEN;
+    const hasUsername = !!this.env.USERNAME;
+    const hasPassword = !!this.env.PASSWORD;
+    const hasAuth = hasUsername && hasPassword;
     const hasDB = !!this.env.DB;
+    
+    // Check if any secrets are missing
+    const missingSecrets = !hasToken || !hasUsername || !hasPassword;
     
     return `
       <!-- Configuration Block -->
@@ -1376,10 +1382,18 @@ export class HTMLBrowser {
               <dd class="text-sm font-medium">${this.escapeHtml(this.baseURL)}</dd>
             </div>
             <div class="flex justify-between">
-              <dt class="text-sm text-muted-foreground">RD Token:</dt>
+              <dt class="text-sm text-muted-foreground">Real Debrid Token:</dt>
               <dd class="text-sm font-medium">
                 <span class="inline-flex items-center rounded-full ${hasToken ? 'bg-green-100 dark:bg-green-900/20 text-green-700 dark:text-green-400' : 'bg-red-100 dark:bg-red-900/20 text-red-700 dark:text-red-400'} px-2 py-1 text-xs font-medium">
                   ${hasToken ? '✓ Configured' : '✗ Missing'}
+                </span>
+              </dd>
+            </div>
+            <div class="flex justify-between">
+              <dt class="text-sm text-muted-foreground">Username & Password:</dt>
+              <dd class="text-sm font-medium">
+                <span class="inline-flex items-center rounded-full ${hasAuth ? 'bg-green-100 dark:bg-green-900/20 text-green-700 dark:text-green-400' : 'bg-yellow-100 dark:bg-yellow-900/20 text-yellow-700 dark:text-yellow-400'} px-2 py-1 text-xs font-medium">
+                  ${hasAuth ? '✓ Configured' : '○ Optional'}
                 </span>
               </dd>
             </div>
@@ -1396,6 +1410,14 @@ export class HTMLBrowser {
               <dd class="text-sm font-medium">Serverless v1.0</dd>
             </div>
           </dl>
+          ${!hasToken ? `
+          <div class="mt-4 pt-4 border-t">
+            <a href="https://developers.cloudflare.com/workers/configuration/environment-variables/#add-environment-variables-via-the-dashboard" target="_blank" class="btn btn-outline btn-sm inline-flex items-center">
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mr-2"><path d="M15 3h6v6"></path><path d="M10 14 21 3"></path><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path></svg>
+              Add Missing Secrets
+            </a>
+          </div>
+          ` : ''}
         </div>
       </div>
     `;
