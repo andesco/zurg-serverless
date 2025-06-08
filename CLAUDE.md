@@ -134,12 +134,32 @@ npx wrangler secret put RD_TOKEN --env production
 **Issue**: Multiple environments sharing same database
 **Fix**: Use separate database IDs for dev/staging/production
 
-## Development Workflow
+## Git Workflow Strategy
 
-### Local Development
-1. Start dev server: `npm run dev`
-2. Uses `wrangler.local.toml` configuration
-3. Local D1 database simulation via Miniflare
+### Branch Structure
+- **`claude` branch**: Local development with detailed commit history
+- **`main` branch**: Public releases with clean, grouped commits
+
+### Release Process
+When asked to "commit to main", "push to origin main", or "ready a release":
+
+```bash
+# Squash merge claude commits into clean release commit
+git checkout main
+git merge --squash claude
+git commit -m "Release X.Y.Z: Description of changes"
+git push origin main
+```
+
+### Benefits
+- **Local `claude`**: Preserves all development commits and history
+- **Public `main`**: Clean release history (every ~10 commits becomes 1 release)
+- **No history loss**: Both detailed and summary histories maintained
+
+### Example Timeline
+- 200 commits in `claude` → 20 release commits in `main`
+- Each release commit represents a group of related changes
+- Full development context preserved locally
 
 ### Debugging
 - Check Worker logs in Cloudflare dashboard
