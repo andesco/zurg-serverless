@@ -37,9 +37,13 @@ async function refreshTorrentList(env: Env, storage: StorageManager): Promise<vo
     console.log(`Found ${downloadedTorrents.length} downloaded torrents`);
     
     // Build simple directory map - each torrent is its own directory
+    // IMPORTANT: Preserve existing cached details
     const directoryMap: DirectoryMap = {};
     
     for (const rdTorrent of downloadedTorrents) {
+      // Check if we already have cached details for this torrent
+      const existingTorrent = await storage.getTorrent(rdTorrent.id);
+      
       const torrent = {
         id: rdTorrent.id,
         name: rdTorrent.filename,
@@ -47,10 +51,13 @@ async function refreshTorrentList(env: Env, storage: StorageManager): Promise<vo
         hash: rdTorrent.hash,
         added: rdTorrent.added,
         ended: rdTorrent.ended,
-        selectedFiles: {}, // Empty - will be fetched on demand
+        // Preserve existing cached file details if available
+        selectedFiles: existingTorrent?.selectedFiles || {}, 
         downloadedIDs: [],
         state: 'ok_torrent' as const,
-        totalSize: rdTorrent.bytes
+        totalSize: rdTorrent.bytes,
+        // Preserve existing cache timestamp
+        cacheTimestamp: existingTorrent?.cacheTimestamp
       };
       
       // Use exact torrent name as directory
@@ -78,7 +85,10 @@ export async function fetchTorrentDetails(torrentName: string, env: Env, storage
   console.log(`=== Fetching details for torrent ${torrentName} ===`);
   
   // First get the torrent from the directory to find its ID
+  console.log(`🔍 Looking for directory: ${torrentName}`);
   const directoryTorrents = await storage.getDirectory(torrentName);
+  console.log(`📂 Directory result:`, directoryTorrents ? `Found ${Object.keys(directoryTorrents).length} torrents` : 'Not found');
+  
   if (!directoryTorrents || Object.keys(directoryTorrents).length === 0) {
     console.log(`❌ Torrent directory ${torrentName} not found`);
     return null;
@@ -86,6 +96,7 @@ export async function fetchTorrentDetails(torrentName: string, env: Env, storage
   
   const torrent = Object.values(directoryTorrents)[0];
   const torrentId = torrent.id;
+  console.log(`🎯 Found torrent ID: ${torrentId}, current cache timestamp: ${torrent.cacheTimestamp}, files: ${Object.keys(torrent.selectedFiles).length}`);
   
   // Check if we have cached details (within 7 days)
   if (torrent.cacheTimestamp) {
@@ -98,19 +109,26 @@ export async function fetchTorrentDetails(torrentName: string, env: Env, storage
     } else {
       console.log(`♻️ Cached details expired or empty for torrent ${torrentName} (${Math.round(cacheAge / (1000 * 60 * 60))}h old)`);
     }
+  } else {
+    console.log(`🚫 No cache timestamp found for torrent ${torrentName}`);
   }
   
   // Fetch fresh details from Real-Debrid (file list only, preserve existing download links)
+  console.log(`📡 Fetching fresh details from Real-Debrid for torrent ID: ${torrentId}`);
   try {
     const rd = new RealDebridClient(env);
     const torrentInfo = await rd.getTorrentInfo(torrentId);
+    
+    console.log(`📡 Real-Debrid response:`, torrentInfo ? 'Success' : 'Failed/Null');
     
     if (!torrentInfo) {
       console.log(`❌ Torrent ${torrentId} not found on Real-Debrid`);
       return null;
     }
     
+    console.log(`🔧 Converting torrent info to internal format...`);
     const detailedTorrent = convertToTorrent(torrentInfo);
+    console.log(`🔧 Converted torrent has ${Object.keys(detailedTorrent.selectedFiles).length} files`);
     
     // If we had existing cached files with download links, preserve those links
     if (torrent.selectedFiles && Object.keys(torrent.selectedFiles).length > 0) {
@@ -128,6 +146,7 @@ export async function fetchTorrentDetails(torrentName: string, env: Env, storage
     }
     
     detailedTorrent.cacheTimestamp = Date.now(); // Add cache timestamp
+    console.log(`💾 Saving torrent details to cache with timestamp: ${detailedTorrent.cacheTimestamp}`);
     
     // Save to cache
     await storage.saveTorrentDetails(torrentId, detailedTorrent);

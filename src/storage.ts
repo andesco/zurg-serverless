@@ -381,76 +381,41 @@ export class StorageManager {
     }
   }
 
-  // Get cache statistics with duplicate detection
+  // Get cache statistics with duplicate detection (counts all torrents from RD)
   async getCacheStatistics(): Promise<{ cached: number; pending: number; duplicates: number; total: number }> {
     try {
-      // Get all torrents with their details
-      const results = await this.db
+      // Get total unique torrents from RD
+      const totalResult = await this.db
+        .prepare('SELECT COUNT(DISTINCT id) as total FROM torrents')
+        .first();
+      
+      const total = totalResult?.total || 0;
+      
+      // Get visible torrents with cache status
+      const visibleResult = await this.db
         .prepare(`
           SELECT 
-            id,
-            selected_files,
-            cache_timestamp
-          FROM torrents
+            COUNT(DISTINCT t.id) as visible_total,
+            COUNT(DISTINCT CASE WHEN 
+              (length(t.selected_files) > 5 AND t.selected_files != '[]' AND t.selected_files != '{}' AND NOT t.selected_files LIKE '{}%' AND NOT t.selected_files LIKE '[]%') 
+              OR t.cache_timestamp IS NOT NULL 
+              THEN t.id END) as visible_cached
+          FROM torrents t
+          JOIN directories d ON t.access_key = d.access_key
+          WHERE d.directory != '__all__' AND d.directory NOT LIKE 'int__%'
         `)
-        .all();
-      
-      if (!results.results) {
-        return { total: 0, cached: 0, pending: 0, duplicates: 0 };
-      }
-      
-      // Track unique torrent IDs and their cache status
-      const uniqueTorrents = new Map<string, { cached: boolean, count: number }>();
-      
-      for (const row of results.results) {
-        const torrentId = row.id as string;
-        const selectedFiles = row.selected_files as string;
-        const cacheTimestamp = row.cache_timestamp as number | null;
+        .first();
         
-        // Determine if this torrent is cached
-        // A torrent is cached if it has detailed file information (more than just "[]")
-        const hasFileDetails = selectedFiles && selectedFiles.length > 5 && selectedFiles !== '[]';
-        const isCached = hasFileDetails || cacheTimestamp !== null;
-        
-        if (uniqueTorrents.has(torrentId)) {
-          // This is a duplicate
-          const existing = uniqueTorrents.get(torrentId)!;
-          existing.count++;
-          // If any instance is cached, consider the torrent cached
-          if (isCached) {
-            existing.cached = true;
-          }
-        } else {
-          // First occurrence of this torrent
-          uniqueTorrents.set(torrentId, { cached: isCached, count: 1 });
-        }
-      }
-      
-      // Calculate statistics
-      let cached = 0;
-      let pending = 0;
-      let duplicates = 0;
-      let totalEntries = 0;
-      
-      for (const [torrentId, info] of uniqueTorrents) {
-        totalEntries += info.count;
-        
-        if (info.count > 1) {
-          duplicates += (info.count - 1); // Count extra entries as duplicates
-        }
-        
-        if (info.cached) {
-          cached++;
-        } else {
-          pending++;
-        }
-      }
+      const visibleTotal = visibleResult?.visible_total || 0;
+      const visibleCached = visibleResult?.visible_cached || 0;
+      const visiblePending = visibleTotal - visibleCached;
+      const orphaned = total - visibleTotal;
       
       return {
-        total: uniqueTorrents.size, // Unique torrents
-        cached,
-        pending,
-        duplicates
+        total,
+        cached: visibleCached,
+        pending: visiblePending,
+        duplicates: orphaned
       };
     } catch (error) {
       console.error('Error getting cache statistics:', error);
@@ -458,7 +423,25 @@ export class StorageManager {
     }
   }
 
-  // Save individual torrent details
+  // Get torrents that need cache population (use same logic as cache statistics)
+  async getUncachedTorrents(): Promise<Array<{ id: string; name: string }>> {
+    const results = await this.db
+      .prepare(`
+        SELECT DISTINCT id, name 
+        FROM torrents 
+        WHERE NOT (
+          (length(selected_files) > 5 AND selected_files != '[]' AND selected_files != '{}' AND NOT selected_files LIKE '{}%' AND NOT selected_files LIKE '[]%') 
+          OR cache_timestamp IS NOT NULL
+        )
+        ORDER BY added DESC
+      `)
+      .all();
+    
+    return results.results?.map(row => ({
+      id: row.id as string,
+      name: row.name as string
+    })) || [];
+  }
   async saveTorrentDetails(torrentId: string, torrent: Torrent): Promise<void> {
     const accessKey = torrent.id;
     await this.db

@@ -7,6 +7,10 @@ main = "src/worker.ts"
 compatibility_date = "2024-12-01"
 compatibility_flags = ["nodejs_compat"]
 
+# Cron triggers for cache population
+[triggers]
+crons = ["0 */1 * * *"]  # Every hour
+
 # Development environment (default)
 [vars]
 BASE_URL = "http://localhost:8787"
@@ -29,6 +33,10 @@ name = "zurg-serverless"
 routes = [
   { pattern = "serverless.andrewe.link", custom_domain = true }
 ]
+
+# Production cron triggers
+[env.production.triggers]
+crons = ["0 */1 * * *"]  # Every hour
 
 [env.production.vars]
 BASE_URL = "https://serverless.andrewe.link"

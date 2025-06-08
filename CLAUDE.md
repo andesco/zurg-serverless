@@ -265,6 +265,25 @@ New structure:
 - Toggle functionality is in `setViewMode()` function - don't remove
 
 
+### 2025-06-06 - Cache Statistics Display Fix
+- ✅ **Fixed cache statistics display format**: Changed from confusing "X detailed, Y pending (Z total)" to clear "X cached, Y pending, Z duplicates"
+- ✅ **Added duplicate detection**: Now properly counts unique torrent IDs vs total database entries
+- ✅ **Improved cache accuracy**: Better detection of cached vs pending torrents using `cache_timestamp` and file details
+- ✅ **Database migration**: Added `cache_timestamp` column with schema-migration-003.sql
+- ✅ **Fixed cache statistics logic**: Now accounts for the on-demand caching system properly
+
+#### Cache Statistics Logic:
+- **Cached**: Torrents with detailed file information OR cache_timestamp set
+- **Pending**: Unique torrents without detailed cache data  
+- **Duplicates**: Extra database entries for the same torrent ID (RD library duplicates)
+- **Total**: Count of unique torrents (not total database entries)
+
+#### Example Display:
+```
+73 torrents
+1 cached, 65 pending, 7 duplicates
+```
+
 ### 2025-06-06 - Smart Download Link Management
 - ✅ **Implemented lazy download link fetching** - no automatic refresh of expired links
 - ✅ **Download links only fetched when actually needed:**
@@ -289,3 +308,134 @@ New structure:
 - **STRM Cache**: Stores torrent/file mapping to enable fresh link fetching for expired codes
 - **Smart preservation**: Merges new file info with existing cached download links
 
+
+
+## ⚠️ CRITICAL ISSUE: Runaway workerd Processes
+
+### Root Cause Analysis (2025-06-07)
+
+**Problem**: Multiple `workerd` processes consuming 35-63% CPU each, running for days
+```bash
+Andrew  81471  43.8  2.1  430MB  R  Fri12AM  435:26.75  workerd serve --socket-addr=entry=localhost:8787
+Andrew  81533  41.5  2.0  430MB  U  Fri12AM  435:21.63  workerd serve --socket-addr=entry=localhost:58951  
+Andrew    804  37.8  2.1  429MB  R  Fri04PM   64:43.55  workerd serve --socket-addr=entry=localhost:55535
+Andrew   1046  35.8  3.1  429MB  R  Fri05PM   64:30.04  workerd serve --socket-addr=entry=localhost:55769
+```
+
+**Root Causes Identified**:
+1. **Improper process termination**: Using Ctrl+C or closing terminals doesn't always kill workerd cleanly
+2. **Multiple concurrent dev sessions**: Starting `npm run dev` multiple times without killing previous
+3. **Process inheritance**: workerd processes become orphaned and continue running independently
+4. **No automatic cleanup**: Wrangler doesn't detect/kill existing processes on new dev start
+5. **Background execution**: Processes started with `&` or in background continue indefinitely
+
+### Prevention Plan
+
+#### 1. Pre-Development Process Check
+**ALWAYS run before starting development**:
+```bash
+# Check for existing workerd processes
+ps aux | grep workerd | grep -v grep
+
+# Kill any existing workerd processes  
+pkill -f workerd
+
+# Verify cleanup
+ps aux | grep workerd | grep -v grep
+```
+
+#### 2. Safe Development Workflow
+```bash
+# 1. Clean slate start
+pkill -f workerd
+cd /Users/Andrew/Developer/zurg-serverless
+
+# 2. Start development (ALWAYS in foreground)
+npm run dev
+
+# 3. PROPER termination (use Ctrl+C, then verify)
+# After Ctrl+C, always verify:
+ps aux | grep workerd | grep -v grep
+```
+
+#### 3. Process Monitoring Script
+Create monitoring script: `/Users/Andrew/Developer/zurg-serverless/scripts/check-workerd.sh`
+```bash
+#!/bin/bash
+echo "=== Workerd Process Check ==="
+processes=$(ps aux | grep workerd | grep -v grep)
+if [ -z "$processes" ]; then
+    echo "✅ No workerd processes running"
+else
+    echo "⚠️  Found workerd processes:"
+    echo "$processes"
+    echo ""
+    echo "Kill them with: pkill -f workerd"
+fi
+```
+
+#### 4. Enhanced Package.json Scripts
+Add safe development commands:
+```json
+{
+  "scripts": {
+    "dev-safe": "pkill -f workerd 2>/dev/null || true && npm run dev",
+    "dev-clean": "pkill -f workerd && sleep 2 && npm run dev",
+    "kill-workerd": "pkill -f workerd && ps aux | grep workerd | grep -v grep",
+    "dev-status": "ps aux | grep workerd | grep -v grep || echo 'No workerd processes'"
+  }
+}
+```
+
+#### 5. Terminal Session Management
+- **NEVER use background execution** (`npm run dev &`)
+- **NEVER start multiple dev sessions** without killing previous
+- **ALWAYS verify termination** after Ctrl+C
+- **Use dedicated terminal** for development server only
+
+#### 6. Automated Cleanup Checks
+Add to development workflow:
+```bash
+# Daily cleanup check (add to .zshrc or .bashrc)
+alias workerd-check='ps aux | grep workerd | grep -v grep'
+alias workerd-kill='pkill -f workerd'
+alias dev-clean='cd /Users/Andrew/Developer/zurg-serverless && pkill -f workerd 2>/dev/null || true && npm run dev'
+```
+
+#### 7. System Resource Monitoring
+Monitor system impact:
+```bash
+# Check CPU usage by workerd
+ps aux | grep workerd | awk '{sum += $3} END {print "Total workerd CPU: " sum "%"}'
+
+# Check memory usage by workerd  
+ps aux | grep workerd | awk '{sum += $6/1024} END {print "Total workerd RAM: " sum " MB"}'
+```
+
+### Emergency Cleanup Procedure
+When system becomes slow due to runaway processes:
+```bash
+# 1. Immediate kill all workerd
+sudo pkill -9 -f workerd
+
+# 2. Clean wrangler temp files
+rm -rf /Users/Andrew/Developer/*/.wrangler/tmp/*
+
+# 3. Restart development cleanly
+cd /Users/Andrew/Developer/zurg-serverless
+npm run dev
+```
+
+### Implementation Status
+- ✅ Root cause identified (2025-06-07)
+- ⚠️ **ACTION REQUIRED**: Implement prevention scripts
+- ⚠️ **ACTION REQUIRED**: Update package.json with safe commands
+- ⚠️ **ACTION REQUIRED**: Create monitoring script
+- ⚠️ **ACTION REQUIRED**: Add shell aliases for cleanup
+
+### Immediate Action Items
+1. Kill existing runaway processes: `pkill -f workerd`
+2. Create monitoring script: `scripts/check-workerd.sh`
+3. Update package.json with safe dev commands
+4. Test safe development workflow
+5. Add system aliases for quick cleanup

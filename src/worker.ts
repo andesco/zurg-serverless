@@ -7,6 +7,7 @@ import { handleWebDAVRequest, handleWebDAVGET } from './webdav-handlers';
 import { handleSTRMDownload } from './strm-handler';
 import { RealDebridClient } from './realdebrid';
 import { formatPoints, calculateDaysRemaining, calculateTotalTrafficServed, formatTrafficServed, convertToTorrent } from './utils';
+import { populateAllTorrentDetails, maybePopulateCache } from './cache-population';
 
 function checkBasicAuth(request: Request, env: Env): Response | null {
   if (!env.USERNAME || !env.PASSWORD) {
@@ -105,6 +106,24 @@ export default {
         }
       }
 
+      if (pathSegments[0] === 'admin' && pathSegments[1] === 'populate-cache') {
+        console.log('Manual cache population triggered');
+        await populateAllTorrentDetails(env);
+        return new Response('Cache population started', { 
+          status: 200,
+          headers: { 'Content-Type': 'text/plain' }
+        });
+      }
+
+      if (pathSegments[0] === 'test-rd-webdav') {
+        const { testRDWebDAV } = await import('./rd-webdav-test');
+        const result = await testRDWebDAV(env);
+        return new Response(result, { 
+          status: 200,
+          headers: { 'Content-Type': 'text/plain' }
+        });
+      }
+
       if (pathSegments[0] === 'strm' && pathSegments.length === 2) {
         const strmCode = pathSegments[1];
         await maybeRefreshTorrents(env);
@@ -132,6 +151,7 @@ export default {
       }
 
       await maybeRefreshTorrents(env);
+      await maybePopulateCache(env);
       const storage = new StorageManager(env);
       const webdav = new WebDAVGenerator(env, request);
 
@@ -167,6 +187,16 @@ export default {
       return new Response(`Internal Server Error: ${errorMessage}`, { status: 500 });
     }
   },
+
+  async scheduled(event: ScheduledEvent, env: Env, ctx: ExecutionContext): Promise<void> {
+    console.log('=== CRON JOB: Cache population ===');
+    try {
+      await populateAllTorrentDetails(env);
+      console.log('✅ Scheduled cache population complete');
+    } catch (error) {
+      console.error('❌ Scheduled cache population failed:', error);
+    }
+  }
 };
 
 async function handleFilesRequest(pathSegments: string[], storage: StorageManager, htmlBrowser: HTMLBrowser, request: Request, env: Env): Promise<Response> {

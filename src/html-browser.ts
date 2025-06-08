@@ -304,7 +304,7 @@ export class HTMLBrowser {
   private getBaseScripts(): string {
     return `
       <script>
-        // Enhanced navigation 
+        // Enhanced navigation
         function navigateToFolder(path) {
           console.log('Navigating to folder:', path);
           window.location.href = path;
@@ -591,9 +591,9 @@ export class HTMLBrowser {
           <div class="flex items-center justify-between">
             <div>
               <h1 class="text-2xl font-bold text-gray-900 hidden md:block">Media Library</h1>
-              <p class="text-gray-600">${validDirectories.length} directories</p>
+              <p class="text-gray-600">${validDirectories.length} media folders</p>
               <p class="text-xs text-muted-foreground">
-                ${cacheStats.cached} cached, ${cacheStats.pending} pending, ${cacheStats.duplicates} duplicates
+                ${cacheStats.cached} unique torrents: ${cacheStats.cached} cached, ${cacheStats.pending} pending
               </p>
             </div>
             <div class="flex items-center gap-4">
@@ -881,7 +881,7 @@ export class HTMLBrowser {
                 <h1 class="text-xl font-bold truncate hidden md:block" title="${this.escapeHtml(torrent.name)}">
                   ${this.escapeHtml(torrent.name)}
                 </h1>
-                <p class="text-gray-600">${fileItems.length} STRM files ready</p>
+                <p class="text-gray-600">${fileItems.length === 1 ? '1 STRM file ready' : `${fileItems.length} STRM files ready`}</p>
               </div>
             </div>
             
@@ -1308,8 +1308,8 @@ export class HTMLBrowser {
                     <i data-lucide="monitor" class="icon"></i>
                   </div>
                   <div>
-                    <h4 class="font-medium text-sm">HTML File Browser</h4>
-                    <p class="text-xs text-muted-foreground">Interactive web interface</p>
+                    <h4 class="font-medium text-sm">File Browser</h4>
+                    <p class="text-xs text-muted-foreground font-mono">${this.baseURL}/files</p>
                   </div>
                 </div>
                 <a href="${this.baseURL}/html" class="btn btn-outline btn-sm">
@@ -1578,9 +1578,9 @@ export class HTMLBrowser {
           <div class="flex items-center justify-between">
             <div>
               <h1 class="text-2xl font-bold text-gray-900 hidden md:block">Files</h1>
-              <p class="text-gray-600">${directories.length} torrents</p>
+              <p class="text-gray-600">${directories.length} media folders</p>
               <p class="text-xs text-muted-foreground">
-                ${cacheStats.cached} cached, ${cacheStats.pending} pending, ${cacheStats.duplicates} duplicates
+                ${cacheStats.cached} unique torrents: ${cacheStats.cached} cached, ${cacheStats.pending} pending
               </p>
             </div>
             <div class="flex items-center gap-4">
@@ -1708,7 +1708,7 @@ export class HTMLBrowser {
           <div class="flex items-center justify-between">
             <div>
               <h1 class="text-2xl font-bold text-gray-900 hidden md:block">Files</h1>
-              <p class="text-gray-600">${fileItems.length} files</p>
+              <p class="text-gray-600">${fileItems.length === 0 ? 'No files' : fileItems.length === 1 ? '1 file' : `${fileItems.length} files`}</p>
             </div>
             <div class="flex items-center gap-4">
               <div class="relative">
@@ -1847,7 +1847,7 @@ export class HTMLBrowser {
               <div>
                 <h3 class="font-semibold mb-3">Actions</h3>
                 <div class="space-y-3">
-                  <a href="/files/${encodeURIComponent(torrentName)}/${encodeURIComponent(fileName)}/${encodeURIComponent(strmFilename)}" 
+                  <a href="/files/${encodeURIComponent(torrentName)}/${encodeURIComponent(fileName)}/${encodeURIComponent(strmFilename)}"
                      class="btn btn-primary w-full">
                     <i data-lucide="download" class="icon mr-2"></i>
                     Download STRM File
