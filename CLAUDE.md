@@ -317,180 +317,23 @@ New structure:
 1 cached, 65 pending, 7 duplicates
 ```
 
-### 2025-06-06 - Smart Download Link Management
-- ✅ **Implemented lazy download link fetching** - no automatic refresh of expired links
-- ✅ **Download links only fetched when actually needed:**
-  1. When someone **downloads a .strm file** (`/files/torrent/file/file.strm`)
-  2. When someone **views file details page** (`/files/torrent/file/`)
-  3. When someone **accesses `/strm/{shortcode}`** and needs redirect
-- ✅ **Preserved existing download links** during normal torrent browsing
-- ✅ **Added `fetchFileDownloadLink()`** function for individual file link fetching
-- ✅ **Updated `fetchTorrentDetails()`** to preserve existing download links when refreshing file lists
-- ✅ **Enhanced STRM handler** to fetch fresh links when cached links expire
-- ✅ **Added `getSTRMInfo()`** method to retrieve STRM metadata for refresh purposes
+### 2025-06-08 - Deploy to Cloudflare Button Configuration
+- ✅ **Updated `deploy.json`** to include missing `USERNAME` and `PASSWORD` fields
+- ✅ **Added basic authentication prompts** for Deploy to Cloudflare button users
+- ✅ **Environment variables now prompted during deployment:**
+  - `RD_TOKEN` (required) - Real-Debrid API token
+  - `USERNAME` (optional) - Basic authentication username  
+  - `PASSWORD` (optional) - Basic authentication password
+  - `STRM_TOKEN` (optional) - STRM file protection token
+  - Additional optional configuration variables
+- ✅ **Basic auth functionality already implemented** in worker.ts with proper credential validation
+- ✅ **Verified placeholder secrets support** for one-click deployment experience
 
-#### Performance Benefits:
-- 🚀 **No unnecessary API calls**: Browsing a 50-episode season only makes 1 API call (torrent details)
-- 🚀 **Lazy link fetching**: Download links only fetched when user actually needs them
-- 🚀 **Preserved cached links**: Existing valid download links are never unnecessarily refreshed
-- 🚀 **Efficient STRM handling**: Expired STRM codes automatically fetch fresh links
-
-#### Technical Implementation:
-- **`fetchTorrentDetails()`**: Gets file list but preserves existing download links
-- **`fetchFileDownloadLink()`**: Fetches individual file download link on demand
-- **STRM Cache**: Stores torrent/file mapping to enable fresh link fetching for expired codes
-- **Smart preservation**: Merges new file info with existing cached download links
+#### Deploy to Cloudflare Button Flow:
+1. User clicks deploy button from GitHub repository
+2. Cloudflare prompts for required and optional environment variables
+3. Worker automatically deploys with provided configuration
+4. Basic authentication enabled if USERNAME and PASSWORD provided
+5. All secrets properly configured as Cloudflare Worker environment variables
 
 
-
-## ⚠️ CRITICAL ISSUE: Runaway workerd Processes
-
-### Root Cause Analysis (2025-06-07)
-
-**Problem**: Multiple `workerd` processes consuming 35-63% CPU each, running for days
-```bash
-Andrew  81471  43.8  2.1  430MB  R  Fri12AM  435:26.75  workerd serve --socket-addr=entry=localhost:8787
-Andrew  81533  41.5  2.0  430MB  U  Fri12AM  435:21.63  workerd serve --socket-addr=entry=localhost:58951  
-Andrew    804  37.8  2.1  429MB  R  Fri04PM   64:43.55  workerd serve --socket-addr=entry=localhost:55535
-Andrew   1046  35.8  3.1  429MB  R  Fri05PM   64:30.04  workerd serve --socket-addr=entry=localhost:55769
-```
-
-**Root Causes Identified**:
-1. **Improper process termination**: Using Ctrl+C or closing terminals doesn't always kill workerd cleanly
-2. **Multiple concurrent dev sessions**: Starting `npm run dev` multiple times without killing previous
-3. **Process inheritance**: workerd processes become orphaned and continue running independently
-4. **No automatic cleanup**: Wrangler doesn't detect/kill existing processes on new dev start
-5. **Background execution**: Processes started with `&` or in background continue indefinitely
-
-### Prevention Plan
-
-#### 1. Pre-Development Process Check
-**ALWAYS run before starting development**:
-```bash
-# Check for existing workerd processes
-ps aux | grep workerd | grep -v grep
-
-# Kill any existing workerd processes  
-pkill -f workerd
-
-# Verify cleanup
-ps aux | grep workerd | grep -v grep
-```
-
-#### 2. Safe Development Workflow
-```bash
-# 1. Clean slate start
-pkill -f workerd
-cd /Users/Andrew/Developer/zurg-serverless
-
-# 2. Start development (ALWAYS in foreground)
-npm run dev
-
-# 3. PROPER termination (use Ctrl+C, then verify)
-# After Ctrl+C, always verify:
-ps aux | grep workerd | grep -v grep
-```
-
-#### 3. Process Monitoring Script
-Create monitoring script: `/Users/Andrew/Developer/zurg-serverless/scripts/check-workerd.sh`
-```bash
-#!/bin/bash
-echo "=== Workerd Process Check ==="
-processes=$(ps aux | grep workerd | grep -v grep)
-if [ -z "$processes" ]; then
-    echo "✅ No workerd processes running"
-else
-    echo "⚠️  Found workerd processes:"
-    echo "$processes"
-    echo ""
-    echo "Kill them with: pkill -f workerd"
-fi
-```
-
-### Enhanced Package.json Scripts
-```json
-{
-  "scripts": {
-    "dev": "wrangler dev --config wrangler.local.toml",
-    "deploy": "wrangler deploy --config wrangler.local.toml --env production",
-    "deploy-staging": "wrangler deploy --config wrangler.local.toml --env staging"
-  }
-}
-```
-
-### Terminal Session Management
-- **Use dedicated terminal** for development server only
-
-#### Emergency Cleanup Procedure
-When system becomes slow due to runaway processes:
-```bash
-# 1. Kill all workerd processes
-sudo pkill -9 -f workerd
-
-# 2. Restart development cleanly
-cd /Users/Andrew/Developer/zurg-serverless
-npm run dev
-```
-
-### 2025-06-07 - UI Consistency and Branding Updates
-- ✅ **Sidebar: Changed "Files" to "File Browser"** for better clarity and consistency
-- ✅ **Sidebar: Removed orange styling from "WebDAV for Infuse"** - now matches other sidebar items
-- ✅ **Root page: Updated "WebDAV for Infuse" card styling**:
-  - Changed from purple (`bg-purple-500/10 text-purple-600`) to orange (`bg-orange-500/10 text-orange-600`) 
-  - Changed icon from `tv` to `server` for consistency with other WebDAV card
-- ✅ **Updated both main and backup HTML browser files** for consistency
-
-#### UI Color Scheme Standardization:
-- **Sidebar items**: All use standard muted colors with accent on hover
-- **WebDAV Standard card**: Blue/gray theme with `server` icon
-- **WebDAV for Infuse card**: Orange theme with `server` icon (distinguishes it as Infuse-specific)
-- **Consistent branding**: Orange highlights Infuse-specific features while maintaining professional look
-
-### 2025-06-07 - Comprehensive UI and UX Improvements
-- ✅ **Added Real Debrid Cache DIV** - New card on homepage displaying:
-  - Total unique torrents count
-  - Cached vs pending statistics 
-  - Duplicate detection and display
-  - Cache completion status with visual indicators
-- ✅ **Enhanced navigation with href links** - Replaced onclick handlers with proper href attributes for:
-  - Better right-click functionality (open in new tab)
-  - Improved accessibility and SEO
-  - Cleaner URL handling
-- ✅ **Smart episode ordering** - Torrent file lists now properly sort TV episodes:
-  - Season-based sorting (S01, S02, etc.)
-  - Episode-based sorting within seasons (E01, E02, etc.)
-  - Fallback to alphabetical for non-episode files
-- ✅ **Consistent blue color scheme** - Applied blue shades across all file pages:
-  - File icons use blue gradients instead of mixed colors
-  - Folder icons maintain blue theme
-  - Visual consistency across all browsing interfaces
-- ✅ **Updated homepage links** - Changed file browser link from `/html/` to `/files/` for current endpoint
-- ✅ **Enhanced H2 headers** - All section headers now use folder icons for visual consistency
-- ✅ **Fixed cache statistics format** - Now displays "X unique torrents: Y cached, Z pending" format
-
-#### Technical Improvements:
-- **Better mobile experience**: href links work better on mobile devices
-- **Improved performance**: Reduced onclick event handlers, cleaner DOM
-- **Enhanced accessibility**: Proper link semantics for screen readers
-- **SEO benefits**: Search engines can better crawl the file structure
-
-#### UI Components Updated:
-- Homepage: Added Real Debrid Cache card in 3-column layout
-- Files root page: Updated torrent cards with href navigation
-- Torrent files page: Applied episode sorting and blue theme
-- File details page: Consistent blue theming and navigation
-
-
-### Implementation Status
-- ✅ Root cause identified (2025-06-07)
-- ⚠️ **ACTION REQUIRED**: Implement prevention scripts
-- ⚠️ **ACTION REQUIRED**: Update package.json with safe commands
-- ⚠️ **ACTION REQUIRED**: Create monitoring script
-- ⚠️ **ACTION REQUIRED**: Add shell aliases for cleanup
-
-### Immediate Action Items
-1. Kill existing runaway processes: `pkill -f workerd`
-2. Create monitoring script: `scripts/check-workerd.sh`
-3. Update package.json with safe dev commands
-4. Test safe development workflow
-5. Add system aliases for quick cleanup

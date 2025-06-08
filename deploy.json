@@ -9,6 +9,14 @@
       "description": "Real-Debrid API token (get from https://real-debrid.com/apitoken)",
       "required": true
     },
+    "USERNAME": {
+      "description": "Basic authentication username (optional, leave empty to disable auth)",
+      "required": false
+    },
+    "PASSWORD": {
+      "description": "Basic authentication password (optional, leave empty to disable auth)",
+      "required": false
+    },
     "STRM_TOKEN": {
       "description": "Optional token for STRM file protection",
       "required": false
