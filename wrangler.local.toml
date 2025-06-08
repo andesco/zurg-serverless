@@ -1,0 +1,67 @@
+# Personal development and production configuration
+# Use this for your own deployments: wrangler deploy --config wrangler.local.toml
+
+account_id = "0a15c5f9d39350baa992ff9f48efc1c8"
+name = "zurg-serverless-dev"
+main = "src/worker.ts"
+compatibility_date = "2024-12-01"
+compatibility_flags = ["nodejs_compat"]
+
+# Cron triggers for cache population
+[triggers]
+crons = ["0 */1 * * *"]  # Every hour
+
+# Development environment (default)
+[vars]
+BASE_URL = "http://localhost:8787"
+REFRESH_INTERVAL_SECONDS = "5"
+API_TIMEOUT_SECONDS = "15"
+TORRENTS_PAGE_SIZE = "50"
+HIDE_BROKEN_TORRENTS = "false"
+
+# Your development database
+[[d1_databases]]
+binding = "DB"
+database_name = "zurg-serverless-dev-db"
+database_id = "c123b8ff-c4ba-4c6b-8878-e8f035026b8d"
+
+# Production environment - deploy with: wrangler deploy --config wrangler.local.toml --env production
+[env.production]
+name = "zurg-serverless"
+
+# Custom domain configuration
+routes = [
+  { pattern = "serverless.andrewe.link", custom_domain = true }
+]
+
+# Production cron triggers
+[env.production.triggers]
+crons = ["0 */1 * * *"]  # Every hour
+
+[env.production.vars]
+BASE_URL = "https://serverless.andrewe.link"
+REFRESH_INTERVAL_SECONDS = "15"
+API_TIMEOUT_SECONDS = "30"
+TORRENTS_PAGE_SIZE = "1000"
+HIDE_BROKEN_TORRENTS = "true"
+
+[[env.production.d1_databases]]
+binding = "DB"
+database_name = "zurg-serverless-prod-db"
+database_id = "711952e5-b009-4de8-bb26-03274cda8ad2"
+
+# Staging environment - deploy with: wrangler deploy --config wrangler.local.toml --env staging
+[env.staging]
+name = "zurg-serverless-staging"
+
+[env.staging.vars]
+BASE_URL = "https://zurg-serverless-staging.andrewe.workers.dev"
+REFRESH_INTERVAL_SECONDS = "10"
+API_TIMEOUT_SECONDS = "20"
+TORRENTS_PAGE_SIZE = "100"
+HIDE_BROKEN_TORRENTS = "false"
+
+[[env.staging.d1_databases]]
+binding = "DB"
+database_name = "zurg-serverless-staging-db"
+database_id = "c123b8ff-c4ba-4c6b-8878-e8f035026b8d" # Replace with your actual staging DB ID

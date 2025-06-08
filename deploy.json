@@ -1,0 +1,47 @@
+{
+  "name": "Zurg Serverless",
+  "description": "A serverless Real Debrid WebDAV server with HTML file browser and .STRM file-based streaming, running as a Cloudflare Worker, using Cloudflare D1.",
+  "repository": "https://github.com/andesco/zurg-serverless",
+  "logo": "https://real-debrid.com/favicon.ico",
+  "success_url": "/",
+  "env": {
+    "RD_TOKEN": {
+      "description": "Real-Debrid API token (get from https://real-debrid.com/apitoken)",
+      "required": true
+    },
+    "STRM_TOKEN": {
+      "description": "Optional token for STRM file protection",
+      "required": false
+    },
+    "BASE_URL": {
+      "description": "Override base URL (leave empty for auto-detection)",
+      "required": false
+    },
+    "REFRESH_INTERVAL_SECONDS": {
+      "description": "Torrent refresh interval in seconds (default: 15)",
+      "required": false
+    },
+    "API_TIMEOUT_SECONDS": {
+      "description": "API timeout in seconds (default: 30)",
+      "required": false
+    },
+    "TORRENTS_PAGE_SIZE": {
+      "description": "Torrents per API page (default: 1000)",
+      "required": false
+    },
+    "HIDE_BROKEN_TORRENTS": {
+      "description": "Hide broken torrents in listings (default: true)",
+      "required": false
+    }
+  },
+  "build": {
+    "env": {
+      "NODE_VERSION": "18"
+    }
+  },
+  "formation": {
+    "worker": {
+      "quantity": 1
+    }
+  }
+}
