@@ -80,13 +80,10 @@ wrangler secret put PASSWORD        # optional: basic auth. password
 
 ## 🛠️ Development
 
-Use these commands for development and command-line deployment:
-
 ```bash
 npm run dev                 # local development
 npm run deploy-staging      # deploy to staging
 npm run deploy              # deploy to production
-npm run dev-template        # test Deploy to Cloudflare button template
 ```
 
 The project uses both:

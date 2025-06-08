@@ -82,8 +82,6 @@
 ```bash
 # Development
 npm run dev                    # Local development server
-npm run deploy                 # Deploy to production
-npm run deploy-staging         # Deploy to staging
 
 # Database management
 npx wrangler d1 execute <db-name> --file=schema.sql
@@ -374,54 +372,27 @@ else
 fi
 ```
 
-#### 4. Enhanced Package.json Scripts
-Add safe development commands:
+### Enhanced Package.json Scripts
 ```json
 {
   "scripts": {
-    "dev-safe": "pkill -f workerd 2>/dev/null || true && npm run dev",
-    "dev-clean": "pkill -f workerd && sleep 2 && npm run dev",
-    "kill-workerd": "pkill -f workerd && ps aux | grep workerd | grep -v grep",
-    "dev-status": "ps aux | grep workerd | grep -v grep || echo 'No workerd processes'"
+    "dev": "wrangler dev --config wrangler.local.toml",
+    "deploy": "wrangler deploy --config wrangler.local.toml --env production",
+    "deploy-staging": "wrangler deploy --config wrangler.local.toml --env staging"
   }
 }
 ```
 
-#### 5. Terminal Session Management
-- **NEVER use background execution** (`npm run dev &`)
-- **NEVER start multiple dev sessions** without killing previous
-- **ALWAYS verify termination** after Ctrl+C
+### Terminal Session Management
 - **Use dedicated terminal** for development server only
 
-#### 6. Automated Cleanup Checks
-Add to development workflow:
-```bash
-# Daily cleanup check (add to .zshrc or .bashrc)
-alias workerd-check='ps aux | grep workerd | grep -v grep'
-alias workerd-kill='pkill -f workerd'
-alias dev-clean='cd /Users/Andrew/Developer/zurg-serverless && pkill -f workerd 2>/dev/null || true && npm run dev'
-```
-
-#### 7. System Resource Monitoring
-Monitor system impact:
-```bash
-# Check CPU usage by workerd
-ps aux | grep workerd | awk '{sum += $3} END {print "Total workerd CPU: " sum "%"}'
-
-# Check memory usage by workerd  
-ps aux | grep workerd | awk '{sum += $6/1024} END {print "Total workerd RAM: " sum " MB"}'
-```
-
-### Emergency Cleanup Procedure
+#### Emergency Cleanup Procedure
 When system becomes slow due to runaway processes:
 ```bash
-# 1. Immediate kill all workerd
+# 1. Kill all workerd processes
 sudo pkill -9 -f workerd
 
-# 2. Clean wrangler temp files
-rm -rf /Users/Andrew/Developer/*/.wrangler/tmp/*
-
-# 3. Restart development cleanly
+# 2. Restart development cleanly
 cd /Users/Andrew/Developer/zurg-serverless
 npm run dev
 ```

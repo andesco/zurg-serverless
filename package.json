@@ -5,12 +5,8 @@
   "main": "src/worker.ts",
   "scripts": {
     "dev": "pkill -f workerd 2>/dev/null || true && wrangler dev --config wrangler.local.toml",
-    "dev-template": "wrangler dev",
     "deploy": "wrangler deploy --config wrangler.local.toml --env production",
-    "deploy-staging": "wrangler deploy --config wrangler.local.toml --env staging",
-    "types": "wrangler types",
-    "cleanup": "bash scripts/emergency-cleanup.sh",
-    "status": "bash scripts/check-workerd.sh"
+    "deploy-staging": "wrangler deploy --config wrangler.local.toml --env staging"
   },
   "keywords": [
     "real-debrid",
