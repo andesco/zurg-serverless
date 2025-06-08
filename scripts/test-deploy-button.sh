@@ -35,7 +35,7 @@ if [[ $action == "2" ]]; then
     echo -e "${CYAN}Debug: Grep results:${NC}"
     npx wrangler list 2>/dev/null | grep "$TEST_PREFIX" || echo "No matches found"
     echo ""
-    test_workers=$(npx wrangler list 2>/dev/null | grep "$TEST_PREFIX" | awk '{print $2}' || true)
+    test_workers=$(npx wrangler list 2>/dev/null | grep "$TEST_PREFIX" | awk -F'│' '{gsub(/^[ \t]+|[ \t]+$/, "", $3); print $3}' || true)
     
     if [[ -n $test_workers ]]; then
         echo -e "${CYAN}Found test workers:${NC}"
@@ -65,7 +65,7 @@ if [[ $action == "2" ]]; then
     echo -e "${CYAN}Debug: Grep results:${NC}"
     npx wrangler d1 list 2>/dev/null | grep "$TEST_PREFIX" || echo "No matches found"
     echo ""
-    test_databases=$(npx wrangler d1 list 2>/dev/null | grep "$TEST_PREFIX" | awk '{print $1}' || true)
+    test_databases=$(npx wrangler d1 list 2>/dev/null | grep "$TEST_PREFIX" | awk -F'│' '{gsub(/^[ \t]+|[ \t]+$/, "", $3); print $3}' || true)
     
     if [[ -n $test_databases ]]; then
         echo -e "${CYAN}Found test databases:${NC}"
