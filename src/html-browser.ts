@@ -1437,8 +1437,8 @@ export class HTMLBrowser {
               <div class="flex justify-between">
                 <dt class="text-sm text-muted-foreground">Cache Status:</dt>
                 <dd class="text-sm font-medium">
-                  <span class="inline-flex items-center rounded-full ${cacheStats.pending === 0 ? 'bg-green-100 dark:bg-green-900/20 text-green-700 dark:text-green-400' : 'bg-yellow-100 dark:bg-yellow-900/20 text-yellow-700 dark:text-yellow-400'} px-2 py-1 text-xs font-medium">
-                    ${cacheStats.pending === 0 ? '✓ Complete' : '⏳ In Progress'}
+                  <span class="inline-flex items-center rounded-full ${cacheStats.total === 0 ? 'bg-yellow-100 dark:bg-yellow-900/20 text-yellow-700 dark:text-yellow-400' : cacheStats.pending === 0 ? 'bg-green-100 dark:bg-green-900/20 text-green-700 dark:text-green-400' : 'bg-yellow-100 dark:bg-yellow-900/20 text-yellow-700 dark:text-yellow-400'} px-2 py-1 text-xs font-medium">
+                    ${cacheStats.total === 0 ? '⏳ Pending' : cacheStats.pending === 0 ? '✓ Complete' : '⏳ In Progress'}
                   </span>
                 </dd>
               </div>
