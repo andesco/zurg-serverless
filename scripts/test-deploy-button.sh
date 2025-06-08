@@ -19,7 +19,83 @@ TEST_PREFIX="zurg-serverless-test"
 echo -e "${CYAN}Test: Deploy with Cloudflare button${NC}"
 echo "==============================="
 echo ""
-echo    "To automate this this, the project name must begin with:"
+echo -e "${BLUE}Choose action:${NC}"
+echo "   1. Deploy new test with button URL"
+echo "   2. Cleanup all test resources"
+echo ""
+read -p "$(echo -e ${GREEN}Enter choice [1/2]: ${NC})" action
+
+if [[ $action == "2" ]]; then
+    echo ""
+    echo -e "${CYAN}Cleaning up ALL test resources...${NC}"
+    
+    # List and delete all test workers
+    echo -e "${BLUE}Finding test workers...${NC}"
+    test_workers=$(npx wrangler list 2>/dev/null | grep "$TEST_PREFIX" | awk '{print $1}' || true)
+    
+    if [[ -n $test_workers ]]; then
+        echo -e "${CYAN}Found test workers:${NC}"
+        echo "$test_workers"
+        echo ""
+        read -p "$(echo -e ${YELLOW}Delete all test workers? [y/N]: ${NC})" confirm_workers
+        
+        if [[ $confirm_workers == "y" || $confirm_workers == "Y" ]]; then
+            while IFS= read -r worker; do
+                if [[ -n $worker ]]; then
+                    echo -e "${CYAN}Deleting worker: $worker${NC}"
+                    npx wrangler delete "$worker" --force 2>/dev/null || echo -e "${YELLOW}Failed to delete $worker${NC}"
+                fi
+            done <<< "$test_workers"
+            echo -e "${GREEN}Worker cleanup completed${NC}"
+        fi
+    else
+        echo -e "${YELLOW}No test workers found${NC}"
+    fi
+    
+    # List and delete all test D1 databases
+    echo ""
+    echo -e "${BLUE}Finding test D1 databases...${NC}"
+    test_databases=$(npx wrangler d1 list 2>/dev/null | grep "$TEST_PREFIX" | awk '{print $2}' || true)
+    
+    if [[ -n $test_databases ]]; then
+        echo -e "${CYAN}Found test databases:${NC}"
+        echo "$test_databases"
+        echo ""
+        read -p "$(echo -e ${YELLOW}Delete all test databases? [y/N]: ${NC})" confirm_databases
+        
+        if [[ $confirm_databases == "y" || $confirm_databases == "Y" ]]; then
+            while IFS= read -r database; do
+                if [[ -n $database ]]; then
+                    echo -e "${CYAN}Deleting database: $database${NC}"
+                    npx wrangler d1 delete "$database" --force 2>/dev/null || echo -e "${YELLOW}Failed to delete $database${NC}"
+                fi
+            done <<< "$test_databases"
+            echo -e "${GREEN}Database cleanup completed${NC}"
+        fi
+    else
+        echo -e "${YELLOW}No test databases found${NC}"
+    fi
+    
+    # GitHub repo cleanup instructions
+    echo ""
+    echo -e "${CYAN}GitHub Repository Cleanup:${NC}"
+    echo "   Please manually delete repositories starting with:"
+    echo "   https://github.com/andesco/${TEST_PREFIX}-*"
+    echo "   (Automated deletion requires GitHub token setup)"
+    
+    echo ""
+    echo -e "${GREEN}Cleanup completed!${NC}"
+    exit 0
+fi
+
+if [[ $action != "1" ]]; then
+    echo -e "${RED}Invalid choice${NC}"
+    exit 1
+fi
+
+# Continue with deploy test...
+echo ""
+echo    "To automate this this, the Project and D1 database names must begin with:"
 echo ""
 echo -e "   ${YELLOW}${TEST_PREFIX}${NC}"
 echo ""
