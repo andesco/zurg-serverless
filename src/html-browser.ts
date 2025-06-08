@@ -1422,28 +1422,16 @@ export class HTMLBrowser {
               </div>
               <div class="flex justify-between">
                 <dt class="text-sm text-muted-foreground">Cached:</dt>
-                <dd class="text-sm font-medium">
-                  <span class="inline-flex items-center rounded-full bg-green-100 dark:bg-green-900/20 text-green-700 dark:text-green-400 px-2 py-1 text-xs font-medium">
-                    ${cacheStats.cached}
-                  </span>
-                </dd>
+                <dd class="text-sm font-medium">${cacheStats.cached}</dd>
               </div>
               <div class="flex justify-between">
                 <dt class="text-sm text-muted-foreground">Pending:</dt>
-                <dd class="text-sm font-medium">
-                  <span class="inline-flex items-center rounded-full ${cacheStats.pending > 0 ? 'bg-yellow-100 dark:bg-yellow-900/20 text-yellow-700 dark:text-yellow-400' : 'bg-gray-100 dark:bg-gray-900/20 text-gray-700 dark:text-gray-400'} px-2 py-1 text-xs font-medium">
-                    ${cacheStats.pending}
-                  </span>
-                </dd>
+                <dd class="text-sm font-medium">${cacheStats.pending}</dd>
               </div>
               ${cacheStats.duplicates > 0 ? `
               <div class="flex justify-between">
                 <dt class="text-sm text-muted-foreground">Duplicates:</dt>
-                <dd class="text-sm font-medium">
-                  <span class="inline-flex items-center rounded-full bg-blue-100 dark:bg-blue-900/20 text-blue-700 dark:text-blue-400 px-2 py-1 text-xs font-medium">
-                    ${cacheStats.duplicates}
-                  </span>
-                </dd>
+                <dd class="text-sm font-medium">${cacheStats.duplicates}</dd>
               </div>
               ` : ''}
               <div class="flex justify-between">
