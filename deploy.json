@@ -3,24 +3,8 @@
   "description": "A serverless Real Debrid WebDAV server with HTML file browser and .STRM file-based streaming, running as a Cloudflare Worker, using Cloudflare D1.",
   "repository": "https://github.com/andesco/zurg-serverless",
   "logo": "https://real-debrid.com/favicon.ico",
-  "success_url": "/",
+  "success_url": "https://github.com/andesco/zurg-serverless#post-deployment-setup",
   "env": {
-    "RD_TOKEN": {
-      "description": "Real-Debrid API token (get from https://real-debrid.com/apitoken)",
-      "required": true
-    },
-    "USERNAME": {
-      "description": "Basic authentication username (optional, leave empty to disable auth)",
-      "required": false
-    },
-    "PASSWORD": {
-      "description": "Basic authentication password (optional, leave empty to disable auth)",
-      "required": false
-    },
-    "STRM_TOKEN": {
-      "description": "Optional token for STRM file protection",
-      "required": false
-    },
     "BASE_URL": {
       "description": "Override base URL (leave empty for auto-detection)",
       "required": false

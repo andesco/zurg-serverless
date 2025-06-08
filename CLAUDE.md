@@ -317,23 +317,31 @@ New structure:
 1 cached, 65 pending, 7 duplicates
 ```
 
-### 2025-06-08 - Deploy to Cloudflare Button Configuration
-- ✅ **Updated `deploy.json`** to include missing `USERNAME` and `PASSWORD` fields
-- ✅ **Added basic authentication prompts** for Deploy to Cloudflare button users
-- ✅ **Environment variables now prompted during deployment:**
-  - `RD_TOKEN` (required) - Real-Debrid API token
-  - `USERNAME` (optional) - Basic authentication username  
-  - `PASSWORD` (optional) - Basic authentication password
-  - `STRM_TOKEN` (optional) - STRM file protection token
-  - Additional optional configuration variables
-- ✅ **Basic auth functionality already implemented** in worker.ts with proper credential validation
-- ✅ **Verified placeholder secrets support** for one-click deployment experience
+### 2025-06-08 - Deploy to Cloudflare Button: Secrets Limitation Fix
+- ❌ **DISCOVERED**: Deploy to Cloudflare button can ONLY create plaintext environment variables, NOT secrets
+- ❌ **ISSUE**: Sensitive data (RD_TOKEN, USERNAME, PASSWORD) was being deployed as visible plaintext
+- ✅ **FIXED**: Removed all sensitive variables from `deploy.json`
+- ✅ **SOLUTION**: Users must manually configure secrets post-deployment
+- ✅ **Updated deploy.json**:
+  - Removed: RD_TOKEN, USERNAME, PASSWORD, STRM_TOKEN (sensitive)
+  - Kept: Non-sensitive configuration variables only
+  - Changed success_url to redirect to setup instructions
+- ✅ **Updated README.md**: Added comprehensive "Post-Deployment Setup" section with step-by-step instructions
+- ✅ **Security improvement**: No sensitive data exposed as plaintext environment variables
 
-#### Deploy to Cloudflare Button Flow:
-1. User clicks deploy button from GitHub repository
-2. Cloudflare prompts for required and optional environment variables
-3. Worker automatically deploys with provided configuration
-4. Basic authentication enabled if USERNAME and PASSWORD provided
-5. All secrets properly configured as Cloudflare Worker environment variables
+#### Deploy to Cloudflare Button Limitation:
+The Deploy to Cloudflare button is designed for quick deployment of applications but has a fundamental limitation: it can only create plaintext environment variables, not encrypted secrets. This is a known Cloudflare limitation, not a bug in our configuration.
+
+**Before**: Users clicked deploy → saw sensitive API tokens as plaintext variables ❌
+**After**: Users click deploy → follow clear setup instructions to add secrets properly ✅
+
+#### New Deployment Flow:
+1. User clicks Deploy to Cloudflare button
+2. Cloudflare deploys with non-sensitive configuration only  
+3. User redirected to README#post-deployment-setup
+4. User manually adds secrets via dashboard or CLI
+5. Application works securely with encrypted secrets
+
+This approach ensures security while maintaining the convenience of one-click deployment for the application structure and non-sensitive configuration.
 
 
