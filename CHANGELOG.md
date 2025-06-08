@@ -1,6 +1,6 @@
 # Release Notes
 
-## v1.1.0 (June 8, 2025)
+## v1.0.0 (June 8, 2025)
 
 ## v1.1.0 (June 8, 2025)
 

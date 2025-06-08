@@ -1,6 +1,6 @@
 {
   "name": "zurg-serverless",
-  "version": "1.1.0",
+  "version": "1.0.0",
   "description": "A serverless Real Debrid WebDAV server with HTML file browser and .STRM file-based streaming, running as a Cloudflare Worker, using Cloudflare D1.",
   "main": "src/worker.ts",
   "scripts": {
