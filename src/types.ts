@@ -6,7 +6,6 @@ export interface Env {
   REFRESH_INTERVAL_SECONDS?: string;
   API_TIMEOUT_SECONDS?: string;
   TORRENTS_PAGE_SIZE?: string;
-  HIDE_BROKEN_TORRENTS?: string;
   USERNAME?: string;
   PASSWORD?: string;
 }

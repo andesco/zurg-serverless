@@ -1,4 +1,5 @@
 import { Env, Torrent, DirectoryMap, CacheMetadata } from './types';
+import { getTestBrokenTorrent } from './test-data';
 
 export class StorageManager {
   private db: D1Database;
@@ -49,6 +50,15 @@ export class StorageManager {
     };
   }
   async getTorrentByName(directory: string, torrentName: string): Promise<{ torrent: Torrent; accessKey: string } | null> {
+    // Check for test broken torrent in development
+    const testTorrent = getTestBrokenTorrent();
+    if (testTorrent && torrentName === testTorrent.name) {
+      return { 
+        torrent: testTorrent, 
+        accessKey: `test_${testTorrent.id}` 
+      };
+    }
+
     const result = await this.db
       .prepare(`
         SELECT t.*, d.access_key
@@ -171,9 +181,16 @@ export class StorageManager {
       .prepare('SELECT DISTINCT directory FROM directories ORDER BY directory')
       .all();
     
-    // Filter out "__all__" and internal directories
-    return results.results?.map(row => row.directory as string)
+    const directories = results.results?.map(row => row.directory as string)
       .filter(dir => dir !== '__all__' && !dir.startsWith('int__')) || [];
+    
+    // Add test broken torrent in development
+    const testTorrent = getTestBrokenTorrent();
+    if (testTorrent && !directories.includes(testTorrent.name)) {
+      directories.unshift(testTorrent.name); // Add at beginning for easy testing
+    }
+    
+    return directories;
   }
 
   // Bulk operations

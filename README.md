@@ -4,24 +4,17 @@ A modern, serverless Real-Debrid WebDAV server with HTML browser interface and .
 
 [![Deploy to Cloudflare Workers](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/debridmediamanager/zurg-serverless)
 
-## Recent Improvements
-
-- **Deploy to Cloudflare button** for one-click deployment
-- **rate-limited API usage** to prevent API overload (error 429)
-- **smart STRM fallback** that now serves an error video when a cached media file is unavailable.
-
 ## Features
 
 ### Dual Interface
-- **HTML browser**: Modern web interface for browsing your media library
-- **WebDAV endpoints**: Compatible with media players, optimized for Infuse
+- **File Browser**: web interface for browsing your media library
+- **WebDAV endpoints**: compatible with media players, optimized for Infuse
 
-### Smart STRM Streaming System
-- **.strm files only**: Each contains a short link (e.g., `/strm/ABCD1234WXYZ5678`)
-- **Consistent URLs**: Links remain stable while redirecting to up-to-date Real Debrid download links.
-- **Intelligent caching**: 7-day URL caching with automatic regeneration
-- **Error fallback**: .STRM redirects to an error video when media is unavailable.
-- **Accurate timestamps**: .STRM file dates match when torrents were added to Real-Debrid for proper "recently added" features in Infuse
+### Smart Streaming System
+- **.strm files only**: each contains a short link (e.g., `/strm/ABCD1234WXYZ5678`)
+- **consistent URLs**: links remain stable while redirecting to up-to-date Real Debrid download links
+- **intelligent caching**: 7-day URL caching with automatic regeneration
+- **error fallback**: .STRM redirects to an error video when media is unavailable.
 
 ### Serverless Architecture
 - **Cloudflare Workers**: Global edge computing
@@ -33,9 +26,9 @@ A modern, serverless Real-Debrid WebDAV server with HTML browser interface and .
 [![Deploy to Cloudflare Workers](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/debridmediamanager/zurg-serverless)
 
 You will be prompted for:
-- **RD_TOKEN** your Real Debrid API token
-- **USERNAME and PASSWORD** (optional) for basic authentication
-- **custom domain or subdomain** (optional)
+- `RD_TOKEN` your Real Debrid API token
+- `USERNAME` and `PASSWORD` for basic authentication (optional)
+- custom domain or subdomain (optional)
 
 ### Manual Setup
 
@@ -51,15 +44,17 @@ For production deployment:
 ```bash
 npm run deploy
 wrangler secret put RD_TOKEN
+wrangler secret put USERNAME
+wrangler secret put PASSWORD
 ```
 
 ## Usage
 
 | Interface | URL | Purpose |
 |-----------|-----|---------|
-| **HTML Browser** | `https://your-worker.workers.dev/` | web interface |
+| **File Browser** | `https://your-worker.workers.dev/` | web interface |
 | **WebDAV** | `https://your-worker.workers.dev/dav` | standard endpoint|
-| **WebDAV for Infuse** | `https://your-worker.workers.dev/infuse` | optimized endpoint |
+| **WebDAV for Infuse** | `https://your-worker.workers.dev/infuse` | optimized endpoint |
 
 ## Configuration
 

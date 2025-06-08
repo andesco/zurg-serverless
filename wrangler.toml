@@ -12,7 +12,6 @@ compatibility_flags = ["nodejs_compat"]
 REFRESH_INTERVAL_SECONDS = "15"
 API_TIMEOUT_SECONDS = "30"
 TORRENTS_PAGE_SIZE = "1000"
-HIDE_BROKEN_TORRENTS = "false"
 
 # The Deploy button will create this database automatically
 [[d1_databases]]
