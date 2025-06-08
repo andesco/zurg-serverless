@@ -6,6 +6,7 @@ CREATE TABLE IF NOT EXISTS cache_metadata (
     id INTEGER PRIMARY KEY,
     last_refresh INTEGER NOT NULL,
     library_checksum TEXT NOT NULL,
+    torrent_ids TEXT DEFAULT '[]',
     created_at INTEGER DEFAULT (strftime('%s', 'now')),
     updated_at INTEGER DEFAULT (strftime('%s', 'now'))
 );
@@ -23,6 +24,7 @@ CREATE TABLE IF NOT EXISTS torrents (
     downloaded_ids TEXT NOT NULL, -- JSON string  
     state TEXT NOT NULL CHECK (state IN ('ok_torrent', 'broken_torrent')),
     total_size INTEGER NOT NULL,
+    cache_timestamp INTEGER,
     created_at INTEGER DEFAULT (strftime('%s', 'now')),
     updated_at INTEGER DEFAULT (strftime('%s', 'now'))
 );
@@ -56,6 +58,14 @@ CREATE TABLE IF NOT EXISTS strm_mappings (
     created_at INTEGER DEFAULT (strftime('%s', 'now')),
     PRIMARY KEY (directory, torrent_id, filename),
     FOREIGN KEY (strm_code) REFERENCES strm_cache(strm_code) ON DELETE CASCADE
+);
+
+-- Cache settings table for key-value storage
+CREATE TABLE IF NOT EXISTS cache_settings (
+    key TEXT PRIMARY KEY,
+    value TEXT NOT NULL,
+    created_at INTEGER DEFAULT (strftime('%s', 'now')),
+    updated_at INTEGER DEFAULT (strftime('%s', 'now'))
 );
 
 -- Indexes for performance
