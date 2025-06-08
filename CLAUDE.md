@@ -327,7 +327,7 @@ New structure:
 
 #### Implementation Details:
 - **Status logic**: `hasAuth = hasUsername && hasPassword` - both must be present for "Configured" status
-- **Button trigger**: Only shows when `!hasToken` (RD_TOKEN missing) since it's the only required secret
+- **Button trigger**: Shows when `missingSecrets = !hasToken || !hasUsername || !hasPassword` (any of the three missing)
 - **Color coding**: Green (configured), Yellow (optional/missing), Red (required missing)
 - **URL**: Links to `https://developers.cloudflare.com/workers/configuration/environment-variables/#add-environment-variables-via-the-dashboard`
 
