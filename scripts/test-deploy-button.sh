@@ -29,7 +29,7 @@ if [[ $action == "2" ]]; then
     
     # List and delete all test workers
     echo -e "${BLUE}Finding test workers...${NC}"
-    test_workers=$(npx wrangler list 2>/dev/null | grep "$TEST_PREFIX" | awk '{print $1}' || true)
+    test_workers=$(npx wrangler list 2>/dev/null | grep "$TEST_PREFIX" | awk '{print $2}' || true)
     
     if [[ -n $test_workers ]]; then
         echo -e "${CYAN}Found test workers:${NC}"
@@ -53,7 +53,7 @@ if [[ $action == "2" ]]; then
     # List and delete all test D1 databases
     echo ""
     echo -e "${BLUE}Finding test D1 databases...${NC}"
-    test_databases=$(npx wrangler d1 list 2>/dev/null | grep "$TEST_PREFIX" | awk '{print $2}' || true)
+    test_databases=$(npx wrangler d1 list 2>/dev/null | grep "$TEST_PREFIX" | awk '{print $1}' || true)
     
     if [[ -n $test_databases ]]; then
         echo -e "${CYAN}Found test databases:${NC}"
