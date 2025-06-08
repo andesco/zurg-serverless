@@ -317,28 +317,23 @@ New structure:
 1 cached, 65 pending, 7 duplicates
 ```
 
-### 2025-06-06 - Smart Download Link Management
-- ✅ **Implemented lazy download link fetching** - no automatic refresh of expired links
-- ✅ **Download links only fetched when actually needed:**
-  1. When someone **downloads a .strm file** (`/files/torrent/file/file.strm`)
-  2. When someone **views file details page** (`/files/torrent/file/`)
-  3. When someone **accesses `/strm/{shortcode}`** and needs redirect
-- ✅ **Preserved existing download links** during normal torrent browsing
-- ✅ **Added `fetchFileDownloadLink()`** function for individual file link fetching
-- ✅ **Updated `fetchTorrentDetails()`** to preserve existing download links when refreshing file lists
-- ✅ **Enhanced STRM handler** to fetch fresh links when cached links expire
-- ✅ **Added `getSTRMInfo()`** method to retrieve STRM metadata for refresh purposes
+### 2025-06-08 - Deploy to Cloudflare Button Configuration
+- ✅ **Updated `deploy.json`** to include missing `USERNAME` and `PASSWORD` fields
+- ✅ **Added basic authentication prompts** for Deploy to Cloudflare button users
+- ✅ **Environment variables now prompted during deployment:**
+  - `RD_TOKEN` (required) - Real-Debrid API token
+  - `USERNAME` (optional) - Basic authentication username  
+  - `PASSWORD` (optional) - Basic authentication password
+  - `STRM_TOKEN` (optional) - STRM file protection token
+  - Additional optional configuration variables
+- ✅ **Basic auth functionality already implemented** in worker.ts with proper credential validation
+- ✅ **Verified placeholder secrets support** for one-click deployment experience
 
-#### Performance Benefits:
-- 🚀 **No unnecessary API calls**: Browsing a 50-episode season only makes 1 API call (torrent details)
-- 🚀 **Lazy link fetching**: Download links only fetched when user actually needs them
-- 🚀 **Preserved cached links**: Existing valid download links are never unnecessarily refreshed
-- 🚀 **Efficient STRM handling**: Expired STRM codes automatically fetch fresh links
-
-#### Technical Implementation:
-- **`fetchTorrentDetails()`**: Gets file list but preserves existing download links
-- **`fetchFileDownloadLink()`**: Fetches individual file download link on demand
-- **STRM Cache**: Stores torrent/file mapping to enable fresh link fetching for expired codes
-- **Smart preservation**: Merges new file info with existing cached download links
+#### Deploy to Cloudflare Button Flow:
+1. User clicks deploy button from GitHub repository
+2. Cloudflare prompts for required and optional environment variables
+3. Worker automatically deploys with provided configuration
+4. Basic authentication enabled if USERNAME and PASSWORD provided
+5. All secrets properly configured as Cloudflare Worker environment variables
 
 
