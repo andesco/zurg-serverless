@@ -1276,8 +1276,9 @@ export class HTMLBrowser {
       <div class="p-4">
         <div class="grid gap-6">
           ${this.generateFilesBlock()}
-          <div class="grid gap-6 md:grid-cols-2">
+          <div class="grid gap-6 md:grid-cols-3">
             ${this.generateConfigurationBlock()}
+            ${await this.generateRealDebridCacheBlock()}
             ${this.generateRealDebridBlock(userInfo)}
           </div>
         </div>
@@ -1311,7 +1312,7 @@ export class HTMLBrowser {
                     <p class="text-xs text-muted-foreground font-mono">${this.baseURL}/files</p>
                   </div>
                 </div>
-                <a href="${this.baseURL}/html" class="btn btn-outline btn-sm">
+                <a href="${this.baseURL}/files" class="btn btn-outline btn-sm">
                   <i data-lucide="external-link" class="icon mr-2"></i>
                   Open
                 </a>
@@ -1398,6 +1399,77 @@ export class HTMLBrowser {
         </div>
       </div>
     `;
+  }
+
+  // Generate Real Debrid Cache block - NEW: Added cache statistics 
+  private async generateRealDebridCacheBlock(): Promise<string> {
+    try {
+      const storage = new (await import('./storage')).StorageManager(this.env);
+      const cacheStats = await storage.getCacheStatistics();
+      
+      return `
+        <!-- Real Debrid Cache Block -->
+        <div class="card">
+          <div class="flex flex-col space-y-1.5 p-6">
+            <h3 class="text-lg font-semibold leading-none tracking-tight">Real Debrid Cache</h3>
+            <p class="text-sm text-muted-foreground">Cache status and statistics</p>
+          </div>
+          <div class="p-6 pt-0">
+            <dl class="grid gap-3">
+              <div class="flex justify-between">
+                <dt class="text-sm text-muted-foreground">Total Torrents:</dt>
+                <dd class="text-sm font-medium">${cacheStats.total}</dd>
+              </div>
+              <div class="flex justify-between">
+                <dt class="text-sm text-muted-foreground">Cached:</dt>
+                <dd class="text-sm font-medium">
+                  <span class="inline-flex items-center rounded-full bg-green-100 dark:bg-green-900/20 text-green-700 dark:text-green-400 px-2 py-1 text-xs font-medium">
+                    ${cacheStats.cached}
+                  </span>
+                </dd>
+              </div>
+              <div class="flex justify-between">
+                <dt class="text-sm text-muted-foreground">Pending:</dt>
+                <dd class="text-sm font-medium">
+                  <span class="inline-flex items-center rounded-full ${cacheStats.pending > 0 ? 'bg-yellow-100 dark:bg-yellow-900/20 text-yellow-700 dark:text-yellow-400' : 'bg-gray-100 dark:bg-gray-900/20 text-gray-700 dark:text-gray-400'} px-2 py-1 text-xs font-medium">
+                    ${cacheStats.pending}
+                  </span>
+                </dd>
+              </div>
+              ${cacheStats.duplicates > 0 ? `
+              <div class="flex justify-between">
+                <dt class="text-sm text-muted-foreground">Duplicates:</dt>
+                <dd class="text-sm font-medium">
+                  <span class="inline-flex items-center rounded-full bg-blue-100 dark:bg-blue-900/20 text-blue-700 dark:text-blue-400 px-2 py-1 text-xs font-medium">
+                    ${cacheStats.duplicates}
+                  </span>
+                </dd>
+              </div>
+              ` : ''}
+              <div class="flex justify-between">
+                <dt class="text-sm text-muted-foreground">Cache Status:</dt>
+                <dd class="text-sm font-medium">
+                  <span class="inline-flex items-center rounded-full ${cacheStats.pending === 0 ? 'bg-green-100 dark:bg-green-900/20 text-green-700 dark:text-green-400' : 'bg-yellow-100 dark:bg-yellow-900/20 text-yellow-700 dark:text-yellow-400'} px-2 py-1 text-xs font-medium">
+                    ${cacheStats.pending === 0 ? '✓ Complete' : '⏳ In Progress'}
+                  </span>
+                </dd>
+              </div>
+            </dl>
+          </div>
+        </div>
+      `;
+    } catch (error) {
+      console.error('Failed to generate cache block:', error);
+      return `
+        <!-- Real Debrid Cache Block -->
+        <div class="card">
+          <div class="flex flex-col space-y-1.5 p-6">
+            <h3 class="text-lg font-semibold leading-none tracking-tight">Real Debrid Cache</h3>
+            <p class="text-sm text-muted-foreground">Unable to fetch cache information</p>
+          </div>
+        </div>
+      `;
+    }
   }
 
   private generateRealDebridBlock(userInfo: {user: any; traffic: any} | null): string {
@@ -1507,43 +1579,45 @@ export class HTMLBrowser {
       // Grid view card
       const gridCard = `
         <div class="search-item">
-          <div class="card cursor-pointer transition-shadow hover:shadow-md"
-               data-searchable="${this.escapeHtml(torrentName)}"
-               onclick="window.location.href='/files/${encodeURIComponent(torrentName)}/'">
-            <div class="p-6">
-              <div class="flex items-center justify-between mb-4">
-                <div class="flex justify-center">
-                  <i data-lucide="folder" class="icon-xl text-blue-500"></i>
+          <a href="/files/${encodeURIComponent(torrentName)}/" class="block">
+            <div class="card cursor-pointer transition-shadow hover:shadow-md"
+                 data-searchable="${this.escapeHtml(torrentName)}">
+              <div class="p-6">
+                <div class="flex items-center justify-between mb-4">
+                  <div class="flex justify-center">
+                    <i data-lucide="folder" class="icon-xl text-blue-500"></i>
+                  </div>
+                  <i data-lucide="chevron-right" class="icon text-muted-foreground"></i>
                 </div>
-                <i data-lucide="chevron-right" class="icon text-muted-foreground"></i>
-              </div>
-              <div class="space-y-1">
-                <p class="font-medium text-sm truncate">${this.escapeHtml(torrentName)}</p>
-                <p class="text-xs text-muted-foreground">${fileText}</p>
+                <div class="space-y-1">
+                  <p class="font-medium text-sm truncate">${this.escapeHtml(torrentName)}</p>
+                  <p class="text-xs text-muted-foreground">${fileText}</p>
+                </div>
               </div>
             </div>
-          </div>
+          </a>
         </div>
       `;
       
       // List view row
       const listRow = `
         <div class="search-item">
-          <div class="card cursor-pointer transition-shadow hover:shadow-md"
-               data-searchable="${this.escapeHtml(torrentName)}"
-               onclick="window.location.href='/files/${encodeURIComponent(torrentName)}/'">
-            <div class="p-3">
-              <div class="flex items-center gap-3">
-                <div class="flex justify-center">
-                  <i data-lucide="folder" class="icon-xl text-blue-500"></i>
-                </div>
-                <div class="flex-1">
-                  <p class="font-medium text-sm truncate">${this.escapeHtml(torrentName)}</p>
-                  <p class="text-xs text-muted-foreground">${fileText}</p>
+          <a href="/files/${encodeURIComponent(torrentName)}/" class="block">
+            <div class="card cursor-pointer transition-shadow hover:shadow-md"
+                 data-searchable="${this.escapeHtml(torrentName)}">
+              <div class="p-3">
+                <div class="flex items-center gap-3">
+                  <div class="flex justify-center">
+                    <i data-lucide="folder" class="icon-xl text-blue-500"></i>
+                  </div>
+                  <div class="flex-1">
+                    <p class="font-medium text-sm truncate">${this.escapeHtml(torrentName)}</p>
+                    <p class="text-xs text-muted-foreground">${fileText}</p>
+                  </div>
                 </div>
               </div>
             </div>
-          </div>
+          </a>
         </div>
       `;
       
@@ -1743,7 +1817,7 @@ export class HTMLBrowser {
       <div class="p-4">
         <div class="mb-8">
           <h2 class="text-lg font-semibold mb-4 flex items-center gap-2">
-            <i data-lucide="file-video" class="icon-lg"></i>
+            <i data-lucide="folder" class="icon-lg"></i>
             Files
           </h2>
           <!-- Grid View -->
