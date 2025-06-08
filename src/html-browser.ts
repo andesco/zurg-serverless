@@ -1276,7 +1276,7 @@ export class HTMLBrowser {
       <div class="p-4">
         <div class="grid gap-6">
           ${this.generateFilesBlock()}
-          <div class="grid gap-6 md:grid-cols-3">
+          <div class="grid gap-6 grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 min-w-0">
             ${this.generateConfigurationBlock()}
             ${await this.generateRealDebridCacheBlock()}
             ${this.generateRealDebridBlock(userInfo)}
@@ -1364,7 +1364,7 @@ export class HTMLBrowser {
     
     return `
       <!-- Configuration Block -->
-      <div class="card">
+      <div class="card min-w-[280px]">
         <div class="flex flex-col space-y-1.5 p-6">
           <h3 class="text-lg font-semibold leading-none tracking-tight">Configuration</h3>
           <p class="text-sm text-muted-foreground">Server configuration and environment details</p>
@@ -1409,7 +1409,7 @@ export class HTMLBrowser {
       
       return `
         <!-- Real Debrid Cache Block -->
-        <div class="card">
+        <div class="card min-w-[280px]">
           <div class="flex flex-col space-y-1.5 p-6">
             <h3 class="text-lg font-semibold leading-none tracking-tight">Real Debrid Cache</h3>
             <p class="text-sm text-muted-foreground">Cache status and statistics</p>
@@ -1462,7 +1462,7 @@ export class HTMLBrowser {
       console.error('Failed to generate cache block:', error);
       return `
         <!-- Real Debrid Cache Block -->
-        <div class="card">
+        <div class="card min-w-[280px]">
           <div class="flex flex-col space-y-1.5 p-6">
             <h3 class="text-lg font-semibold leading-none tracking-tight">Real Debrid Cache</h3>
             <p class="text-sm text-muted-foreground">Unable to fetch cache information</p>
@@ -1476,7 +1476,7 @@ export class HTMLBrowser {
     if (!userInfo) {
       return `
         <!-- Real Debrid Account Block -->
-        <div class="card">
+        <div class="card min-w-[280px]">
           <div class="flex flex-col space-y-1.5 p-6">
             <h3 class="text-lg font-semibold leading-none tracking-tight">Real Debrid Account</h3>
             <p class="text-sm text-muted-foreground">Unable to fetch account information</p>
@@ -1493,7 +1493,7 @@ export class HTMLBrowser {
     
     return `
       <!-- Real Debrid Account Block -->
-      <div class="card">
+      <div class="card min-w-[280px]">
         <div class="flex flex-col space-y-1.5 p-6">
           <h3 class="text-lg font-semibold leading-none tracking-tight">Real Debrid Account</h3>
           <p class="text-sm text-muted-foreground">Connected account information</p>
