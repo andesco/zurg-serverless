@@ -440,6 +440,40 @@ npm run dev
 - **WebDAV for Infuse card**: Orange theme with `server` icon (distinguishes it as Infuse-specific)
 - **Consistent branding**: Orange highlights Infuse-specific features while maintaining professional look
 
+### 2025-06-07 - Comprehensive UI and UX Improvements
+- ✅ **Added Real Debrid Cache DIV** - New card on homepage displaying:
+  - Total unique torrents count
+  - Cached vs pending statistics 
+  - Duplicate detection and display
+  - Cache completion status with visual indicators
+- ✅ **Enhanced navigation with href links** - Replaced onclick handlers with proper href attributes for:
+  - Better right-click functionality (open in new tab)
+  - Improved accessibility and SEO
+  - Cleaner URL handling
+- ✅ **Smart episode ordering** - Torrent file lists now properly sort TV episodes:
+  - Season-based sorting (S01, S02, etc.)
+  - Episode-based sorting within seasons (E01, E02, etc.)
+  - Fallback to alphabetical for non-episode files
+- ✅ **Consistent blue color scheme** - Applied blue shades across all file pages:
+  - File icons use blue gradients instead of mixed colors
+  - Folder icons maintain blue theme
+  - Visual consistency across all browsing interfaces
+- ✅ **Updated homepage links** - Changed file browser link from `/html/` to `/files/` for current endpoint
+- ✅ **Enhanced H2 headers** - All section headers now use folder icons for visual consistency
+- ✅ **Fixed cache statistics format** - Now displays "X unique torrents: Y cached, Z pending" format
+
+#### Technical Improvements:
+- **Better mobile experience**: href links work better on mobile devices
+- **Improved performance**: Reduced onclick event handlers, cleaner DOM
+- **Enhanced accessibility**: Proper link semantics for screen readers
+- **SEO benefits**: Search engines can better crawl the file structure
+
+#### UI Components Updated:
+- Homepage: Added Real Debrid Cache card in 3-column layout
+- Files root page: Updated torrent cards with href navigation
+- Torrent files page: Applied episode sorting and blue theme
+- File details page: Consistent blue theming and navigation
+
 
 ### Implementation Status
 - ✅ Root cause identified (2025-06-07)

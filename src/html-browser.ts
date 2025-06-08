@@ -592,7 +592,7 @@ export class HTMLBrowser {
               <h1 class="text-2xl font-bold text-gray-900 hidden md:block">Media Library</h1>
               <p class="text-gray-600">${validDirectories.length} media folders</p>
               <p class="text-xs text-muted-foreground">
-                ${cacheStats.cached} unique torrents: ${cacheStats.cached} cached, ${cacheStats.pending} pending
+                ${cacheStats.total} unique torrents: ${cacheStats.cached} cached, ${cacheStats.pending} pending
               </p>
             </div>
             <div class="flex items-center gap-4">
@@ -1653,7 +1653,7 @@ export class HTMLBrowser {
               <h1 class="text-2xl font-bold text-gray-900 hidden md:block">Files</h1>
               <p class="text-gray-600">${directories.length} media folders</p>
               <p class="text-xs text-muted-foreground">
-                ${cacheStats.cached} unique torrents: ${cacheStats.cached} cached, ${cacheStats.pending} pending
+                ${cacheStats.total} unique torrents: ${cacheStats.cached} cached, ${cacheStats.pending} pending
               </p>
             </div>
             <div class="flex items-center gap-4">
