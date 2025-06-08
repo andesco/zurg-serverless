@@ -17,13 +17,11 @@ DEPLOY_URL="https://deploy.workers.cloudflare.com/?url=https://github.com/andesc
 TEST_PREFIX="zurg-serverless-test"
 
 echo -e "${CYAN}Test: Deploy with Cloudflare button${NC}"
-echo "==============================="
 echo ""
-echo -e "${BLUE}Choose action:${NC}"
-echo "   1. Deploy new test with button URL"
+echo "   1. Deploy new test with button URL; or"
 echo "   2. Cleanup all test resources"
 echo ""
-read -p "$(echo -e ${GREEN}Enter choice [1/2]: ${NC})" action
+read -p "$(echo -e ${BLUE}Enter choice [1/2]: ${NC})" action
 
 if [[ $action == "2" ]]; then
     echo ""
@@ -101,7 +99,7 @@ echo -e "   ${YELLOW}${TEST_PREFIX}${NC}"
 echo ""
 echo    "   (example: zurg-serverless-test-01)"
 echo ""
-read -p "$(echo -e ${GREEN}Deploy to Cloudflare in web browser? [y/N]: ${NC})" confirm
+read -p "$(echo -e ${BLUE}Deploy to Cloudflare in web browser? [y/N]: ${NC})" confirm
 
 if [[ $confirm != "y" && $confirm != "Y" ]]; then
     echo -e "${RED}Test cancelled${NC}"
@@ -133,7 +131,7 @@ echo "   4. Configure optional secrets: USERNAME, PASSWORD"
 echo "   5. Confirm deployment."
 echo ""
 
-read -p "$(echo -e ${GREEN}Deployment completed and tested successfully? [y/N]: ${NC})" success
+read -p "$(echo -e ${BLUE}Deployment completed and tested successfully? [y/N]: ${NC})" success
 
 if [[ $success != "y" && $success != "Y" ]]; then
     echo -e "${RED}Test failed or cancelled${NC}"
