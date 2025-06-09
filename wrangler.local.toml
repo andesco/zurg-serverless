@@ -6,6 +6,7 @@ name = "zurg-serverless-dev"
 main = "src/worker.ts"
 compatibility_date = "2024-12-01"
 compatibility_flags = ["nodejs_compat"]
+workers_dev = false  # Disable *.workers.dev preview URL
 
 # Development environment (default) - runs locally with wrangler dev
 [vars]
@@ -26,6 +27,7 @@ database_id = "6f592a7c-d6e4-48b1-b58f-9fb9bfe0ccb0"
 # Production environment - deploy with: wrangler deploy --config wrangler.local.toml --env production
 [env.production]
 name = "zurg-serverless"
+workers_dev = false  # Disable *.workers.dev preview URL
 
 # Custom domain configuration
 routes = [
