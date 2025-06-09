@@ -317,7 +317,28 @@ New structure:
 1 cached, 65 pending, 7 duplicates
 ```
 
-### 2025-06-08 - Successful Production Deployment (v1.0.1)
+### 2025-06-08 - Database Configuration Fix & Schema Application
+- ❌ **ISSUE**: `D1_ERROR: no such table: cache_metadata` on both worker deployments
+- ✅ **ROOT CAUSE**: Database ID changed and schema not applied to new database
+- ✅ **FIXED**: Updated database ID to `af42ed0a-06bc-47e5-81a1-8c078e4286d7`
+- ✅ **APPLIED**: Full schema.sql to zurg-serverless-private database
+- ✅ **DEPLOYED**: Latest code to both workers:
+  - `zurg-serverless` (main production): Version `0eb865cf-f249-4955-8165-c3e44c3968ce`
+  - `zurg-serverless-private`: Version `d2cdc2f2-b6fc-44db-84ac-d14828d4d471`
+
+#### Database Schema Applied:
+- ✅ **14 queries executed**: All tables, indexes, and triggers created
+- ✅ **6 tables created**: cache_metadata, torrents, directories, strm_cache, strm_mappings, cache_settings
+- ✅ **Database size**: 0.08 MB with 25 rows written
+- ✅ **Both workers connected**: Using same database with full schema
+
+#### Working URLs:
+- **Main Production**: https://serverless.andrewe.link/files/
+- **Private Instance**: https://zurg-serverless-private.andrewe.workers.dev/files/
+
+Both deployments now have proper database connectivity and should work without the cache_metadata table error.
+
+
 - ✅ **DEPLOYED**: All latest changes successfully deployed to production
 - ✅ **URL**: https://serverless.andrewe.link 
 - ✅ **Version ID**: eaa8a4e1-dd72-4b2b-9fe6-75f811f5ef88
