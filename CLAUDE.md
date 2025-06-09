@@ -317,7 +317,27 @@ New structure:
 1 cached, 65 pending, 7 duplicates
 ```
 
-### 2025-06-08 - Homepage: Username & Password Status + Add Missing Secrets Button
+### 2025-06-08 - Successful Production Deployment (v1.0.1)
+- ✅ **DEPLOYED**: All latest changes successfully deployed to production
+- ✅ **URL**: https://serverless.andrewe.link 
+- ✅ **Version ID**: eaa8a4e1-dd72-4b2b-9fe6-75f811f5ef88
+- ✅ **Database**: zurg-serverless-private (8dba8a7a-b18b-4fee-bfb0-148f5ba04944)
+- ✅ **Features deployed**:
+  - Deploy to Cloudflare button security fixes
+  - Post-deployment setup instructions in README
+  - Homepage Username & Password status display
+  - Add Missing Secrets button functionality
+  - Fixed duplicate method issue in storage.ts
+
+#### Deployment Fixes Applied:
+- **Database configuration**: Updated production database ID to use available database
+- **Code cleanup**: Renamed duplicate `getUncachedTorrents()` to `getAllUncachedTorrents()`
+- **Configuration**: Custom domain and cron triggers properly configured
+- **Performance**: 10ms worker startup time, 178.22 KiB upload size
+
+The production environment is now running the latest version with all the Deploy to Cloudflare improvements and homepage enhancements.
+
+
 - ✅ **Added "Username & Password:" status display** below "Real Debrid Token:" on homepage
 - ✅ **Joint status logic**: Shows "✓ Configured" (green) if both USERNAME and PASSWORD are set, "○ Optional" (yellow) if either is missing
 - ✅ **Added "Add Missing Secrets" button** when RD_TOKEN is missing (required secret)
