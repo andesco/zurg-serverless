@@ -20,7 +20,7 @@ WORKER_NAME = "zurg-serverless-dev"
 [[d1_databases]]
 binding = "DB"
 database_name = "zurg-serverless-dev-db"
-database_id = "c123b8ff-c4ba-4c6b-8878-e8f035026b8d"
+database_id = "6f592a7c-d6e4-48b1-b58f-9fb9bfe0ccb0"
 
 # Production environment - deploy with: wrangler deploy --config wrangler.local.toml --env production
 [env.production]
@@ -28,7 +28,7 @@ name = "zurg-serverless"
 
 # Custom domain configuration
 routes = [
-  { pattern = "serverless.andrewe.link", custom_domain = true }
+  { pattern = "zurg.andrewe.dev", custom_domain = true }
 ]
 
 # Production cron triggers
@@ -36,7 +36,7 @@ routes = [
 crons = ["0 */1 * * *"]  # Every hour
 
 [env.production.vars]
-BASE_URL = "https://serverless.andrewe.link"
+BASE_URL = "https://zurg.andrewe.dev"
 REFRESH_INTERVAL_SECONDS = "15"
 API_TIMEOUT_SECONDS = "30"
 TORRENTS_PAGE_SIZE = "1000"
@@ -45,5 +45,5 @@ WORKER_NAME = "zurg-serverless"
 
 [[env.production.d1_databases]]
 binding = "DB"
-database_name = "zurg-serverless-private"
-database_id = "af42ed0a-06bc-47e5-81a1-8c078e4286d7"
+database_name = "zurg-serverless-production-db"
+database_id = "4f471a5a-cc69-4c17-874a-eab5ec19e756"
