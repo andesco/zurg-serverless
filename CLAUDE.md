@@ -32,7 +32,7 @@
 ```bash
 # 1. Set up local secrets
 cp .dev.vars.example .dev.vars  # Create from template
-# Edit .dev.vars with your Real-Debrid API token
+# Edit .dev.vars with your Real-Debrid token: RD_TOKEN="your_token_here"
 
 # 2. Start local development
 wrangler dev --config wrangler.local.toml
@@ -44,12 +44,12 @@ wrangler deploy --config wrangler.local.toml --env production
 ### Environment Variables by Environment
 
 #### Local Development (default)
-- Uses `.dev.vars` for secrets like `REAL_DEBRID_API_TOKEN`
+- Uses `.dev.vars` for secrets like `RD_TOKEN`, `STRM_TOKEN`, `USERNAME`, `PASSWORD`
 - Local D1 database with faster refresh intervals for testing
 - Smaller page sizes for quicker iteration
 
 #### Production 
-- Uses encrypted Cloudflare secrets set via `wrangler secret put`
+- Uses encrypted Cloudflare secrets set via `wrangler secret put RD_TOKEN --env production`
 - Production D1 database with optimized settings
 - Custom domain routing and cron triggers enabled
 
