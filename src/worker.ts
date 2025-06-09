@@ -128,14 +128,27 @@ export default {
           // Check if refresh is already running
           const currentStatus = await storage.getCacheRefreshStatus();
           if (currentStatus && currentStatus.status === 'running') {
-            return new Response(JSON.stringify({
-              success: false,
-              message: 'Cache refresh already in progress',
-              refreshId: currentStatus.id
-            }), {
-              status: 409,
-              headers: { 'Content-Type': 'application/json' }
-            });
+            // Check if the refresh is stale (older than 10 minutes with no progress)
+            const now = Date.now();
+            const isStale = (now - currentStatus.started_at) > (10 * 60 * 1000) && 
+                           currentStatus.processed_torrents === 0;
+            
+            if (isStale) {
+              console.log(`Clearing stale refresh: ${currentStatus.id}`);
+              await storage.completeCacheRefresh(currentStatus.id, false, 'Cleared stale refresh');
+            } else {
+              const minutesAgo = Math.round((now - currentStatus.started_at) / (60 * 1000));
+              return new Response(JSON.stringify({
+                success: false,
+                message: 'Cache refresh already in progress',
+                refreshId: currentStatus.id,
+                details: `Started ${minutesAgo} minutes ago, processed ${currentStatus.processed_torrents}/${currentStatus.total_torrents} torrents`,
+                progress: currentStatus.total_torrents > 0 ? Math.round((currentStatus.processed_torrents / currentStatus.total_torrents) * 100) : 0
+              }), {
+                status: 409,
+                headers: { 'Content-Type': 'application/json' }
+              });
+            }
           }
           
           // Start background refresh using waitUntil

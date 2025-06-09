@@ -448,6 +448,17 @@ export class HTMLBrowser {
             
             if (!result.success) {
               const errorMsg = result.error || result.message || 'Failed to start cache refresh';
+              
+              // Special handling for "already in progress" error
+              if (result.message && result.message.includes('already in progress')) {
+                if (result.details) {
+                  alert('Cache refresh is already running!\\n\\n' + result.details + '\\n\\nPlease wait for it to complete or try again in a few minutes.');
+                } else {
+                  alert('Cache refresh is already in progress. Please wait for it to complete.');
+                }
+                return;
+              }
+              
               throw new Error(errorMsg);
             }
 
