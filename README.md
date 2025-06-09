@@ -20,70 +20,27 @@ A modern, serverless Real-Debrid WebDAV server with HTML browser interface and .
 - **Cloudflare Workers**: Global edge computing
 - **Cloudflare D1**: Distributed SQLite database
 
-## Quick Deploy
+## Deployment
 
-### One-Click Deployment
+### Recommended Deployment
 [![Deploy to Cloudflare Workers](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/andesco/zurg-serverless)
 
-After deployment, you'll need to configure your secrets manually (see [Post-Deployment Setup](#post-deployment-setup) below).
+After deployment, add your secrets manually.
 
-## Post-Deployment Setup
+1. [Cloudflare Dashboard](https://dash.cloudflare.com/) ⇢ Workers & Pages ⇢ Zurg Serverless ⇢ Settings
+2. Under **Variables and Secrets**, add the following secrets: \
+   `RD_TOKEN` https://real-debrid.com/apitoken \
+   `USERNAME` \
+   `PASSWORD`
+3. Deploy the changes
 
-**⚠️ Important**: After using the Deploy to Cloudflare button, you must manually configure your secrets for the application to work.
-
-### Step 1: Add Required Secrets
-
-1. **Go to your Worker settings**:
-   - Visit [Cloudflare Dashboard](https://dash.cloudflare.com/)
-   - Navigate to **Workers & Pages** → Your Worker → **Settings**
-
-2. **Add your Real-Debrid API token**:
-   - Under **Variables and Secrets**, click **Add**
-   - Select type: **Secret**
-   - Variable name: `RD_TOKEN`
-   - Value: Your Real-Debrid API token ([get from here](https://real-debrid.com/apitoken))
-   - Click **Deploy**
-
-3. **Add Basic Authentication (optional)**:
-   - Add another secret with name: `USERNAME` and your desired username
-   - Add another secret with name: `PASSWORD` and your desired password
-   - Add another secret with name: `STRM_TOKEN` (optional, for STRM file protection)
-   - Click **Deploy**
-
-### Step 2: Test Your Deployment
-
-Visit your Worker URL (found in the dashboard) to verify it's working:
-- You should see the Zurg Serverless homepage
-- If you set USERNAME/PASSWORD, you'll be prompted for authentication
-- Check the cache statistics to ensure Real-Debrid connection is working
-
-### Alternative: Command Line Setup
-
-If you prefer using Wrangler CLI:
-```bash
-# Clone the generated repository
-git clone <your-new-repository-url>
-cd <your-repository-name>
-
-# Set secrets via command line
-wrangler secret put RD_TOKEN
-wrangler secret put USERNAME    # optional
-wrangler secret put PASSWORD    # optional
-wrangler secret put STRM_TOKEN  # optional
-```
-
-### Manual Setup
+### Command Line Deployment
 
 ```bash
 git clone https://github.com/andesco/zurg-serverless
 cd zurg-serverless
 npm install
 wrangler login
-npm run dev
-```
-
-For production deployment:
-```bash
 npm run deploy-local
 wrangler secret put RD_TOKEN
 wrangler secret put USERNAME

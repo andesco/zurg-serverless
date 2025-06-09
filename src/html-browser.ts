@@ -1393,7 +1393,7 @@ export class HTMLBrowser {
               <dt class="text-sm text-muted-foreground">Username & Password:</dt>
               <dd class="text-sm font-medium">
                 <span class="inline-flex items-center rounded-full ${hasAuth ? 'bg-green-100 dark:bg-green-900/20 text-green-700 dark:text-green-400' : 'bg-yellow-100 dark:bg-yellow-900/20 text-yellow-700 dark:text-yellow-400'} px-2 py-1 text-xs font-medium">
-                  ${hasAuth ? '✓ Configured' : '○ Optional'}
+                  ${hasAuth ? '✓ Configured' : '✗ Missing'}
                 </span>
               </dd>
             </div>
@@ -1401,7 +1401,7 @@ export class HTMLBrowser {
               <dt class="text-sm text-muted-foreground">Database:</dt>
               <dd class="text-sm font-medium">
                 <span class="inline-flex items-center rounded-full ${hasDB ? 'bg-green-100 dark:bg-green-900/20 text-green-700 dark:text-green-400' : 'bg-red-100 dark:bg-red-900/20 text-red-700 dark:text-red-400'} px-2 py-1 text-xs font-medium">
-                  ${hasDB ? '✓ Available' : '✗ Not configured'}
+                  ${hasDB ? '✓ Available' : '✗ Not Configured'}
                 </span>
               </dd>
             </div>
@@ -1423,7 +1423,7 @@ export class HTMLBrowser {
     `;
   }
 
-  // Generate Real Debrid Cache block - NEW: Added cache statistics 
+  // Generate Real Debrid Cache block - NEW: Added cache statistics
   private async generateRealDebridCacheBlock(): Promise<string> {
     try {
       const storage = new (await import('./storage')).StorageManager(this.env);
