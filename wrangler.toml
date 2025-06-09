@@ -5,7 +5,6 @@ name = "zurg-serverless"
 main = "src/worker.ts"
 compatibility_date = "2024-12-01"
 compatibility_flags = ["nodejs_compat"]
-workers_dev = false  # Disable *.workers.dev preview URL
 
 # Disable preview URLs and workers.dev subdomain for security
 workers_dev = false
