@@ -13,6 +13,7 @@ crons = ["0 */1 * * *"]  # Every hour
 # Default configuration for new deployments
 [vars]
 # These are safe defaults - secrets will be prompted during deployment
+API_ACCOUNT_ID = ""  # Will be auto-populated during deployment
 REFRESH_INTERVAL_SECONDS = "15"
 API_TIMEOUT_SECONDS = "30"
 TORRENTS_PAGE_SIZE = "1000"

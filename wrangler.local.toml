@@ -9,6 +9,7 @@ compatibility_flags = ["nodejs_compat"]
 
 # Development environment (default) - runs locally with wrangler dev
 [vars]
+API_ACCOUNT_ID = "0a15c5f9d39350baa992ff9f48efc1c8"
 BASE_URL = "http://localhost:8787"
 REFRESH_INTERVAL_SECONDS = "5"
 API_TIMEOUT_SECONDS = "15"
@@ -36,6 +37,7 @@ routes = [
 crons = ["0 */1 * * *"]  # Every hour
 
 [env.production.vars]
+API_ACCOUNT_ID = "0a15c5f9d39350baa992ff9f48efc1c8"
 BASE_URL = "https://zurg.andrewe.dev"
 REFRESH_INTERVAL_SECONDS = "15"
 API_TIMEOUT_SECONDS = "30"
