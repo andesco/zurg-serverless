@@ -75,7 +75,7 @@ async function generateStatusPage(env: Env, request: Request): Promise<string> {
 }
 
 export default {
-  async fetch(request: Request, env: Env): Promise<Response> {
+  async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
     console.log('=== WORKER STARTED ===');
     try {
       const authResponse = checkBasicAuth(request, env);
@@ -143,13 +143,21 @@ export default {
           const refreshId = await storage.startCacheRefresh(uncachedTorrents.length);
           
           // Background processing - don't wait for completion
-          ctx.waitUntil((async () => {
-            try {
-              await populateAllTorrentDetails(env, refreshId);
-            } catch (error) {
-              console.error('Background cache refresh failed:', error);
-            }
-          })());
+          if (ctx && ctx.waitUntil) {
+            ctx.waitUntil((async () => {
+              try {
+                await populateAllTorrentDetails(env, refreshId);
+              } catch (error) {
+                console.error('Background cache refresh failed:', error);
+              }
+            })());
+          } else {
+            // Fallback: start the process without waitUntil (it will still work)
+            console.warn('ctx.waitUntil not available, starting refresh without background protection');
+            populateAllTorrentDetails(env, refreshId).catch(error => {
+              console.error('Cache refresh failed:', error);
+            });
+          }
           
           return new Response(JSON.stringify({
             success: true,

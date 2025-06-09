@@ -1579,7 +1579,7 @@ export class HTMLBrowser {
             </dl>
             ${cacheStats.pending > 0 || cacheStats.total === 0 ? `
             <div class="mt-4 pt-4 border-t">
-              <button id="update-cache-btn" onclick="updateCache()" class="btn btn-primary btn-sm inline-flex items-center">
+              <button id="update-cache-btn" onclick="updateCache()" class="btn btn-outline btn-sm inline-flex items-center">
                 <i data-lucide="refresh-cw" class="w-4 h-4 mr-2"></i>
                 <span id="update-cache-text">Update Cache</span>
               </button>
