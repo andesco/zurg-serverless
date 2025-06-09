@@ -447,7 +447,8 @@ export class HTMLBrowser {
             const result = await response.json();
             
             if (!result.success) {
-              throw new Error(result.message || 'Failed to start cache refresh');
+              const errorMsg = result.error || result.message || 'Failed to start cache refresh';
+              throw new Error(errorMsg);
             }
 
             // Show progress UI

@@ -115,6 +115,112 @@ export default {
         });
       }
 
+      // New progress-tracked cache refresh endpoint
+      if (pathSegments[0] === 'refresh-cache') {
+        if (request.method !== 'POST') {
+          return new Response('Method not allowed', { status: 405 });
+        }
+        
+        console.log('Starting background cache refresh...');
+        try {
+          const storage = new StorageManager(env);
+          
+          // Check if refresh is already running
+          const currentStatus = await storage.getCacheRefreshStatus();
+          if (currentStatus && currentStatus.status === 'running') {
+            return new Response(JSON.stringify({
+              success: false,
+              message: 'Cache refresh already in progress',
+              refreshId: currentStatus.id
+            }), {
+              status: 409,
+              headers: { 'Content-Type': 'application/json' }
+            });
+          }
+          
+          // Start background refresh using waitUntil
+          const uncachedTorrents = await storage.getAllUncachedTorrents();
+          const refreshId = await storage.startCacheRefresh(uncachedTorrents.length);
+          
+          // Background processing - don't wait for completion
+          ctx.waitUntil((async () => {
+            try {
+              await populateAllTorrentDetails(env, refreshId);
+            } catch (error) {
+              console.error('Background cache refresh failed:', error);
+            }
+          })());
+          
+          return new Response(JSON.stringify({
+            success: true,
+            message: 'Cache refresh started',
+            refreshId,
+            totalTorrents: uncachedTorrents.length
+          }), {
+            status: 200,
+            headers: { 'Content-Type': 'application/json' }
+          });
+          
+        } catch (error) {
+          console.error('Failed to start cache refresh:', error);
+          const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+          return new Response(JSON.stringify({
+            success: false,
+            message: 'Failed to start cache refresh',
+            error: errorMessage,
+            details: error instanceof Error ? error.stack : undefined
+          }), {
+            status: 500,
+            headers: { 'Content-Type': 'application/json' }
+          });
+        }
+      }
+
+      // Cache refresh status endpoint
+      if (pathSegments[0] === 'refresh-status') {
+        if (request.method !== 'GET') {
+          return new Response('Method not allowed', { status: 405 });
+        }
+        
+        try {
+          const storage = new StorageManager(env);
+          const url = new URL(request.url);
+          const refreshId = url.searchParams.get('id');
+          
+          const status = await storage.getCacheRefreshStatus(refreshId ? parseInt(refreshId) : undefined);
+          
+          if (!status) {
+            return new Response(JSON.stringify({
+              success: false,
+              message: 'No refresh status found'
+            }), {
+              status: 404,
+              headers: { 'Content-Type': 'application/json' }
+            });
+          }
+          
+          return new Response(JSON.stringify({
+            success: true,
+            ...status,
+            progress: status.total_torrents > 0 ? Math.round((status.processed_torrents / status.total_torrents) * 100) : 0
+          }), {
+            status: 200,
+            headers: { 'Content-Type': 'application/json' }
+          });
+          
+        } catch (error) {
+          console.error('Failed to get refresh status:', error);
+          return new Response(JSON.stringify({
+            success: false,
+            message: 'Failed to get refresh status',
+            error: error instanceof Error ? error.message : 'Unknown error'
+          }), {
+            status: 500,
+            headers: { 'Content-Type': 'application/json' }
+          });
+        }
+      }
+
       if (pathSegments[0] === 'test-rd-webdav') {
         const { testRDWebDAV } = await import('./rd-webdav-test');
         const result = await testRDWebDAV(env);
