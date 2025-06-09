@@ -21,6 +21,38 @@
 5. **STRM Handler** - Generates streaming files for media players
 6. **Real-Debrid Client** - API integration
 
+## Environment Configuration
+
+### Configuration Files
+- **`.dev.vars`** - Local development secrets (git-ignored)
+- **`wrangler.local.toml`** - Personal development and production configuration
+- **`wrangler.toml`** - Template configuration for Deploy button
+
+### Local Development Workflow
+```bash
+# 1. Set up local secrets
+cp .dev.vars.example .dev.vars  # Create from template
+# Edit .dev.vars with your Real-Debrid API token
+
+# 2. Start local development
+wrangler dev --config wrangler.local.toml
+
+# 3. Deploy to production
+wrangler deploy --config wrangler.local.toml --env production
+```
+
+### Environment Variables by Environment
+
+#### Local Development (default)
+- Uses `.dev.vars` for secrets like `REAL_DEBRID_API_TOKEN`
+- Local D1 database with faster refresh intervals for testing
+- Smaller page sizes for quicker iteration
+
+#### Production 
+- Uses encrypted Cloudflare secrets set via `wrangler secret put`
+- Production D1 database with optimized settings
+- Custom domain routing and cron triggers enabled
+
 ## Deployment Methods
 
 ### Deploy to Cloudflare Button
@@ -28,11 +60,16 @@
 - Cloudflare runs `npx wrangler deploy` automatically
 - For new users and one-click deployment
 
-### Manual Deployment
+### Manual Deployment (Local Development)
 - Uses `wrangler.local.toml` with environment configs
-- Run `npm run deploy-local` for production
-- Run `npm run deploy-staging` for staging
-- For development and testing
+- **Two environments only**: Local Development + Production
+- Local development uses `wrangler dev` with local D1 database
+- Production deployment: `wrangler deploy --config wrangler.local.toml --env production`
+
+### Environment Strategy
+- **Local Development**: `wrangler dev` → Uses `.dev.vars` for secrets, local D1 storage
+- **Production**: `wrangler deploy --env production` → Uses encrypted secrets, production D1 database
+- **No staging environment** → Simplified workflow, reduced API costs and resource usage
 
 ## Project Structure
 
