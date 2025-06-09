@@ -422,6 +422,116 @@ export class HTMLBrowser {
           }
         }
 
+        // Update cache with progress tracking
+        let currentRefreshId = null;
+        let progressInterval = null;
+
+        async function updateCache() {
+          const button = document.getElementById('update-cache-btn');
+          const buttonText = document.getElementById('update-cache-text');
+          const progressDiv = document.getElementById('cache-progress');
+          const progressText = document.getElementById('progress-text');
+          const progressBar = document.getElementById('progress-bar');
+
+          try {
+            // Disable button and show loading state
+            button.disabled = true;
+            buttonText.textContent = 'Starting...';
+            
+            // Start cache refresh
+            const response = await fetch('/refresh-cache', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' }
+            });
+            
+            const result = await response.json();
+            
+            if (!result.success) {
+              throw new Error(result.message || 'Failed to start cache refresh');
+            }
+
+            // Show progress UI
+            currentRefreshId = result.refreshId;
+            progressDiv.classList.remove('hidden');
+            buttonText.textContent = 'Refreshing...';
+            progressText.textContent = \`Processing 0/\${result.totalTorrents} torrents...\`;
+
+            // Start polling for progress
+            progressInterval = setInterval(pollProgress, 2000);
+            
+          } catch (error) {
+            console.error('Cache refresh failed:', error);
+            buttonText.textContent = 'Update Cache';
+            button.disabled = false;
+            alert('Failed to start cache refresh: ' + error.message);
+          }
+        }
+
+        async function pollProgress() {
+          if (!currentRefreshId) return;
+
+          try {
+            const response = await fetch(\`/refresh-status?id=\${currentRefreshId}\`);
+            const result = await response.json();
+
+            if (!result.success) {
+              throw new Error('Failed to get refresh status');
+            }
+
+            const progressText = document.getElementById('progress-text');
+            const progressBar = document.getElementById('progress-bar');
+            const buttonText = document.getElementById('update-cache-text');
+
+            // Update progress display
+            const current = result.processed_torrents || 0;
+            const total = result.total_torrents || 0;
+            const progress = result.progress || 0;
+            
+            progressText.textContent = \`Processing \${current}/\${total} torrents...\`;
+            if (result.current_torrent) {
+              progressText.textContent += \` (\${result.current_torrent})\`;
+            }
+            progressBar.style.width = \`\${progress}%\`;
+
+            // Check if completed
+            if (result.status === 'completed') {
+              clearInterval(progressInterval);
+              progressInterval = null;
+              currentRefreshId = null;
+              
+              // Show success state
+              progressText.textContent = 'Cache refresh completed!';
+              progressBar.style.width = '100%';
+              buttonText.textContent = 'Update Cache';
+              document.getElementById('update-cache-btn').disabled = false;
+              
+              // Reload page after 2 seconds to show updated cache stats
+              setTimeout(() => {
+                window.location.reload();
+              }, 2000);
+              
+            } else if (result.status === 'failed') {
+              clearInterval(progressInterval);
+              progressInterval = null;
+              currentRefreshId = null;
+              
+              // Show error state
+              progressText.textContent = \`Cache refresh failed: \${result.error_message || 'Unknown error'}\`;
+              buttonText.textContent = 'Update Cache';
+              document.getElementById('update-cache-btn').disabled = false;
+            }
+
+          } catch (error) {
+            console.error('Failed to poll progress:', error);
+            clearInterval(progressInterval);
+            progressInterval = null;
+            currentRefreshId = null;
+            
+            document.getElementById('update-cache-text').textContent = 'Update Cache';
+            document.getElementById('update-cache-btn').disabled = false;
+          }
+        }
+
         // Close sidebar on resize if screen becomes large
         window.addEventListener('resize', () => {
           if (window.innerWidth >= 768) {
@@ -1466,6 +1576,22 @@ export class HTMLBrowser {
                 </dd>
               </div>
             </dl>
+            ${cacheStats.pending > 0 || cacheStats.total === 0 ? `
+            <div class="mt-4 pt-4 border-t">
+              <button id="update-cache-btn" onclick="updateCache()" class="btn btn-primary btn-sm inline-flex items-center">
+                <i data-lucide="refresh-cw" class="w-4 h-4 mr-2"></i>
+                <span id="update-cache-text">Update Cache</span>
+              </button>
+              <div id="cache-progress" class="mt-3 hidden">
+                <div class="text-sm text-muted-foreground mb-2">
+                  <span id="progress-text">Starting cache refresh...</span>
+                </div>
+                <div class="w-full bg-muted rounded-full h-2">
+                  <div id="progress-bar" class="bg-primary h-2 rounded-full transition-all duration-300" style="width: 0%"></div>
+                </div>
+              </div>
+            </div>
+            ` : ''}
           </div>
         </div>
       `;
