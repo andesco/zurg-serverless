@@ -441,7 +441,7 @@ export class StorageManager {
   }
 
   // Get torrents that need cache population (use same logic as cache statistics)
-  async getUncachedTorrents(): Promise<Array<{ id: string; name: string }>> {
+  async getAllUncachedTorrents(): Promise<Array<{ id: string; name: string }>> {
     const results = await this.db
       .prepare(`
         SELECT DISTINCT id, name 

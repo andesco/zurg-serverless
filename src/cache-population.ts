@@ -11,7 +11,7 @@ export async function populateAllTorrentDetails(env: Env): Promise<void> {
   const rd = new RealDebridClient(env);
   
   // Get all torrents without cached details
-  const uncachedTorrents = await storage.getUncachedTorrents();
+  const uncachedTorrents = await storage.getAllUncachedTorrents();
   console.log(`Found ${uncachedTorrents.length} uncached torrents`);
   
   if (uncachedTorrents.length === 0) {
