@@ -7,23 +7,28 @@ compatibility_date = "2024-12-01"
 compatibility_flags = ["nodejs_compat"]
 preview_urls = false  # Disable versioned preview URLs
 
-# Disable preview URLs and workers.dev subdomain for security
-workers_dev = false
-preview_urls = false
-
+# Cron triggers for cache refresh (essential for functionality)
 [triggers]
-crons = ["0 */1 * * *"]  # hourly cron trigger for cache refreshes
+crons = ["0 */1 * * *"]  # Every hour
 
-
+# Configuration for new deployments
 [vars]
-API_ACCOUNT_ID = ""  # auto-populated during deployment
+# Required: Get your token from https://real-debrid.com/apitoken
+RD_TOKEN = ""
+
+# Optional: Basic authentication credentials for WebDAV access
+USERNAME = ""
+PASSWORD = ""
+
+# These are safe defaults - no need to change
+API_ACCOUNT_ID = ""  # Will be auto-populated during deployment
 REFRESH_INTERVAL_SECONDS = "15"
 API_TIMEOUT_SECONDS = "30"
 TORRENTS_PAGE_SIZE = "1000"
 WORKER_NAME = "zurg-serverless"
 
-# Deploy to Cloudflare button will create this database automatically:
+# The Deploy button will create this database automatically
 [[d1_databases]]
 binding = "DB"
 database_name = "zurg-serverless-db"
-database_id = "" # auto-populated during deployment
+database_id = "" # Will be populated during deployment
