@@ -48,7 +48,7 @@ HIDE_BROKEN_TORRENTS = "true"
 [[env.production.d1_databases]]
 binding = "DB"
 database_name = "zurg-serverless-private"
-database_id = "8dba8a7a-b18b-4fee-bfb0-148f5ba04944"
+database_id = "af42ed0a-06bc-47e5-81a1-8c078e4286d7"
 
 # Staging environment - deploy with: wrangler deploy --config wrangler.local.toml --env staging
 [env.staging]
