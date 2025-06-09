@@ -20,28 +20,27 @@ A modern, serverless Real-Debrid WebDAV server with HTML browser interface and .
 - **Cloudflare Workers**: Global edge computing
 - **Cloudflare D1**: Distributed SQLite database
 
-## Quick Deploy
+## Deployment
 
-### One-Click Deployment
+### Recommended Deployment
 [![Deploy to Cloudflare Workers](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/andesco/zurg-serverless)
 
-You will be prompted for:
-- `RD_TOKEN` your Real Debrid API token
-- `USERNAME` and `PASSWORD` for basic authentication (optional)
-- custom domain or subdomain (optional)
+After deployment, add your secrets manually.
 
-### Manual Setup
+1. [Cloudflare Dashboard](https://dash.cloudflare.com/) ⇢ Workers & Pages ⇢ Zurg Serverless ⇢ Settings
+2. Under **Variables and Secrets**, add the following secrets: \
+   `RD_TOKEN` https://real-debrid.com/apitoken \
+   `USERNAME` \
+   `PASSWORD`
+3. Deploy the changes
+
+### Command Line Deployment
 
 ```bash
 git clone https://github.com/andesco/zurg-serverless
 cd zurg-serverless
 npm install
 wrangler login
-npm run dev
-```
-
-For production deployment:
-```bash
 npm run deploy-local
 wrangler secret put RD_TOKEN
 wrangler secret put USERNAME

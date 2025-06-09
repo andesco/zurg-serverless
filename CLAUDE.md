@@ -317,23 +317,67 @@ New structure:
 1 cached, 65 pending, 7 duplicates
 ```
 
-### 2025-06-08 - Deploy to Cloudflare Button Configuration
-- ✅ **Updated `deploy.json`** to include missing `USERNAME` and `PASSWORD` fields
-- ✅ **Added basic authentication prompts** for Deploy to Cloudflare button users
-- ✅ **Environment variables now prompted during deployment:**
-  - `RD_TOKEN` (required) - Real-Debrid API token
-  - `USERNAME` (optional) - Basic authentication username  
-  - `PASSWORD` (optional) - Basic authentication password
-  - `STRM_TOKEN` (optional) - STRM file protection token
-  - Additional optional configuration variables
-- ✅ **Basic auth functionality already implemented** in worker.ts with proper credential validation
-- ✅ **Verified placeholder secrets support** for one-click deployment experience
+### 2025-06-08 - Successful Production Deployment (v1.0.1)
+- ✅ **DEPLOYED**: All latest changes successfully deployed to production
+- ✅ **URL**: https://serverless.andrewe.link 
+- ✅ **Version ID**: eaa8a4e1-dd72-4b2b-9fe6-75f811f5ef88
+- ✅ **Database**: zurg-serverless-private (8dba8a7a-b18b-4fee-bfb0-148f5ba04944)
+- ✅ **Features deployed**:
+  - Deploy to Cloudflare button security fixes
+  - Post-deployment setup instructions in README
+  - Homepage Username & Password status display
+  - Add Missing Secrets button functionality
+  - Fixed duplicate method issue in storage.ts
 
-#### Deploy to Cloudflare Button Flow:
-1. User clicks deploy button from GitHub repository
-2. Cloudflare prompts for required and optional environment variables
-3. Worker automatically deploys with provided configuration
-4. Basic authentication enabled if USERNAME and PASSWORD provided
-5. All secrets properly configured as Cloudflare Worker environment variables
+#### Deployment Fixes Applied:
+- **Database configuration**: Updated production database ID to use available database
+- **Code cleanup**: Renamed duplicate `getUncachedTorrents()` to `getAllUncachedTorrents()`
+- **Configuration**: Custom domain and cron triggers properly configured
+- **Performance**: 10ms worker startup time, 178.22 KiB upload size
+
+The production environment is now running the latest version with all the Deploy to Cloudflare improvements and homepage enhancements.
+
+
+- ✅ **Added "Username & Password:" status display** below "Real Debrid Token:" on homepage
+- ✅ **Joint status logic**: Shows "✓ Configured" (green) if both USERNAME and PASSWORD are set, "○ Optional" (yellow) if either is missing
+- ✅ **Added "Add Missing Secrets" button** when RD_TOKEN is missing (required secret)
+- ✅ **Button styling**: Matches existing design with external link icon and btn-outline styling
+- ✅ **Direct link**: Button points to Cloudflare docs for adding environment variables via dashboard
+- ✅ **Improved user experience**: Clear visual indication of configuration status and direct path to fix missing secrets
+
+#### Implementation Details:
+- **Status logic**: `hasAuth = hasUsername && hasPassword` - both must be present for "Configured" status
+- **Button trigger**: Shows when `missingSecrets = !hasToken || !hasUsername || !hasPassword` (any of the three missing)
+- **Color coding**: Green (configured), Yellow (optional/missing), Red (required missing)
+- **URL**: Links to `https://developers.cloudflare.com/workers/configuration/environment-variables/#add-environment-variables-via-the-dashboard`
+
+This enhancement provides immediate visual feedback about configuration status and a direct path to resolve missing secrets after Deploy to Cloudflare button usage.
+
+
+- ❌ **DISCOVERED**: Deploy to Cloudflare button can ONLY create plaintext environment variables, NOT secrets
+- ❌ **ISSUE**: Sensitive data (RD_TOKEN, USERNAME, PASSWORD) was being deployed as visible plaintext
+- ✅ **FIXED**: Removed all sensitive variables from `deploy.json`
+- ✅ **SOLUTION**: Users must manually configure secrets post-deployment
+- ✅ **Updated deploy.json**:
+  - Removed: RD_TOKEN, USERNAME, PASSWORD, STRM_TOKEN (sensitive)
+  - Kept: Non-sensitive configuration variables only
+  - Changed success_url to redirect to setup instructions
+- ✅ **Updated README.md**: Added comprehensive "Post-Deployment Setup" section with step-by-step instructions
+- ✅ **Security improvement**: No sensitive data exposed as plaintext environment variables
+
+#### Deploy to Cloudflare Button Limitation:
+The Deploy to Cloudflare button is designed for quick deployment of applications but has a fundamental limitation: it can only create plaintext environment variables, not encrypted secrets. This is a known Cloudflare limitation, not a bug in our configuration.
+
+**Before**: Users clicked deploy → saw sensitive API tokens as plaintext variables ❌
+**After**: Users click deploy → follow clear setup instructions to add secrets properly ✅
+
+#### New Deployment Flow:
+1. User clicks Deploy to Cloudflare button
+2. Cloudflare deploys with non-sensitive configuration only  
+3. User redirected to README#post-deployment-setup
+4. User manually adds secrets via dashboard or CLI
+5. Application works securely with encrypted secrets
+
+This approach ensures security while maintaining the convenience of one-click deployment for the application structure and non-sensitive configuration.
 
 
