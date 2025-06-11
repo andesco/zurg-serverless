@@ -133,6 +133,53 @@ export default {
         });
       }
 
+      // Test endpoint to check IP addresses for RD API calls
+      if (pathSegments[0] === 'admin' && pathSegments[1] === 'test-ip-addresses') {
+        console.log('Testing IP addresses for RD API calls');
+        const rd = new RealDebridClient(env);
+        
+        // Make multiple API calls and log IP addresses
+        const results = [];
+        for (let i = 0; i < 10; i++) {
+          try {
+            console.log(`Making API call ${i + 1}/10...`);
+            const response = await fetch('https://real-debrid.com/api/v1/user', {
+              headers: { 'Authorization': `Bearer ${env.RD_TOKEN}` }
+            });
+            
+            // Log request details
+            const result = {
+              call: i + 1,
+              status: response.status,
+              cfRay: response.headers.get('cf-ray'),
+              cfConnectingIp: request.headers.get('cf-connecting-ip'),
+              xForwardedFor: request.headers.get('x-forwarded-for'),
+              timestamp: new Date().toISOString()
+            };
+            
+            results.push(result);
+            console.log(`Call ${i + 1}: Status ${response.status}, CF-Ray: ${result.cfRay}`);
+            
+            // Wait 2 seconds between calls
+            if (i < 9) {
+              await new Promise(resolve => setTimeout(resolve, 2000));
+            }
+          } catch (error) {
+            console.error(`API call ${i + 1} failed:`, error);
+            results.push({
+              call: i + 1,
+              error: error instanceof Error ? error.message : 'Unknown error',
+              timestamp: new Date().toISOString()
+            });
+          }
+        }
+        
+        return new Response(JSON.stringify(results, null, 2), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' }
+        });
+      }
+
       // New progress-tracked cache refresh endpoint
       if (pathSegments[0] === 'refresh-cache') {
         if (request.method !== 'POST') {
