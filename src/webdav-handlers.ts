@@ -192,15 +192,14 @@ export async function handleWebDAVGET(
 
       // Try to get fresh download link if missing or expired
       let downloadLink = file.link;
-      if (!downloadLink && file.state === 'ok_file') {
-        const { fetchFileDownloadLink } = await import('./handlers');
-        downloadLink = await fetchFileDownloadLink(torrent.id, actualFilename, env, storage);
-      }
-      
-      // For broken files, explicitly set downloadLink to null
-      if (file.state !== 'ok_file') {
-        downloadLink = null;
-        console.log(`⚠️ File ${actualFilename} is broken, using fallback`);
+      if (!downloadLink) {
+        try {
+          const { fetchFileDownloadLink } = await import('./handlers');
+          downloadLink = await fetchFileDownloadLink(torrent.id, actualFilename, env, storage);
+        } catch (error) {
+          console.warn(`⚠️ Failed to fetch download link for ${actualFilename}:`, error);
+          downloadLink = null;
+        }
       }
       
       // Generate STRM content (with fallback if no valid link)

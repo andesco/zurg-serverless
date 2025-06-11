@@ -505,15 +505,14 @@ async function handleFilesRequest(pathSegments: string[], storage: StorageManage
     
     // Try to get fresh download link if missing, but proceed regardless
     let downloadLink = file.link;
-    if (!downloadLink && file.state === 'ok_file') {
+    if (!downloadLink) {
       console.log(`🔗 Fetching fresh download link for STRM download: ${fileName}`);
-      downloadLink = await fetchFileDownloadLink(torrent.id, fileName, env, storage);
-    }
-    
-    // For broken files, explicitly set downloadLink to null 
-    if (file.state !== 'ok_file') {
-      downloadLink = null;
-      console.log(`⚠️ File ${fileName} is broken, using fallback`);
+      try {
+        downloadLink = await fetchFileDownloadLink(torrent.id, fileName, env, storage);
+      } catch (error) {
+        console.warn(`⚠️ Failed to fetch download link for ${fileName}:`, error);
+        downloadLink = null;
+      }
     }
     
     // Always generate STRM content (with fallback if no valid link)
