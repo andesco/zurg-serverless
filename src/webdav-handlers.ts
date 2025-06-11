@@ -198,7 +198,13 @@ export async function handleWebDAVGET(
       }
       
       // Generate STRM content (with fallback if no valid link)
-      const strmContent = await webdav.generateSTRMContent(directory, torrent.id, actualFilename, downloadLink);
+      let strmContent;
+      try {
+        strmContent = await webdav.generateSTRMContent(directory, torrent.id, actualFilename, downloadLink);
+      } catch (error) {
+        console.error(`Failed to generate STRM content for ${actualFilename}, using fallback:`, error);
+        strmContent = await webdav.generateSTRMContent(directory, torrent.id, actualFilename, null);
+      }
       
       return new Response(strmContent.content, {
         status: 200,
