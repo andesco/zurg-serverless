@@ -490,28 +490,28 @@ This fixes the persistent "In Progress" status that was preventing proper cache 
 
 ### 2025-06-11 - Conservative API Rate Limiting for Cron Jobs
 - ✅ **Implemented conservative API batching**: 5 torrents per batch, max 100 torrents per cron job
-- ✅ **Adaptive delay strategy**: 13 seconds after first batch, then +1 second for each subsequent batch
+- ✅ **Adaptive delay strategy**: 10 seconds after first batch, then +1 second for each subsequent batch
 - ✅ **Real-Debrid API protection**: Respects ~200 requests per 10 minutes rate limiting
 - ✅ **Partial completion handling**: Properly tracks progress when hitting 100-torrent limit per cron job
 - ✅ **Multi-hour processing**: Large torrent batches (1000+) spread across multiple cron cycles
 
 #### API Rate Limiting Strategy:
 ```
-Batch 1: 5 torrents → wait 13 seconds
-Batch 2: 5 torrents → wait 14 seconds  
-Batch 3: 5 torrents → wait 15 seconds
+Batch 1: 5 torrents → wait 10 seconds
+Batch 2: 5 torrents → wait 11 seconds  
+Batch 3: 5 torrents → wait 12 seconds
 ...
 Batch 20: 5 torrents → done (100 total)
 ```
 
 #### Performance Calculations:
 - **Per cron job**: 100 torrents maximum in ~10 minutes
-- **API calls**: 5 calls + 13s + 5 calls + 14s + ... = well under RD limits
+- **API calls**: 5 calls + 10s + 5 calls + 11s + ... = well under RD limits
 - **Large scenarios**: 1000 new torrents = 10 hours to fully cache (completely reasonable)
 - **Immediate access**: 5 newest torrents still cached instantly during root browse
 
 #### Benefits:
-- **Never hits RD rate limits** - conservative 13+ second delays
+- **Never hits RD rate limits** - conservative 10+ second delays
 - **Reliable execution** - stays well under Worker 10-minute timeout
 - **Graceful scaling** - handles any number of new torrents over time
 - **User experience** - immediate access to recent content, background processing for older content
