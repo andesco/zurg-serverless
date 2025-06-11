@@ -438,4 +438,27 @@ The Deploy to Cloudflare button is designed for quick deployment of applications
 
 This approach ensures security while maintaining the convenience of one-click deployment for the application structure and non-sensitive configuration.
 
+### 2025-06-11 - Proactive New Torrent Caching
+- ✅ **Enhanced torrent list refresh**: Now detects new torrents and proactively fetches details for up to 5 newest ones
+- ✅ **Improved media player experience**: Anticipates that media players (like Infuse) will immediately browse new torrent directories
+- ✅ **Smart caching strategy**: Fetches details for 5 most recent new torrents during root browse, leaves rest for background processing
+- ✅ **Performance optimization**: Reduces cascade of individual API calls when media players explore new content
+- ✅ **Worker timeout safety**: Conservative limit of 5 torrents ensures execution stays well under 30-second limit
+
+#### New API Call Pattern:
+**For 13 new torrents discovered during root browse:**
+- **Root browse**: 1 torrent list call + 5 torrent details calls = **6 total API calls**
+- **Immediate availability**: 5 newest torrents ready for browsing without delays
+- **Background processing**: 8 remaining torrents cached by hourly cron job
+- **User experience**: Media players can immediately browse most recent content
+
+#### Technical Implementation:
+- **Detection**: Compares current torrent IDs with `getCachedTorrentIds()` to identify new torrents
+- **Selection**: Takes first 5 torrents from new torrent list (most recent additions)
+- **Caching**: Fetches full torrent details and updates directory map with file information
+- **Error handling**: Failed fetches don't block the refresh process
+- **Logging**: Clear feedback about proactive vs background caching
+
+This change transforms "Zurg Serverless" from purely reactive caching to intelligently proactive caching for new content.
+
 

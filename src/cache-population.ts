@@ -4,8 +4,8 @@ import { StorageManager } from './storage';
 import { RealDebridClient } from './realdebrid';
 import { convertToTorrent } from './utils';
 
-// Populate all uncached torrents
-export async function populateAllTorrentDetails(env: Env): Promise<void> {
+// Populate all uncached torrents with progress tracking
+export async function populateAllTorrentDetails(env: Env, refreshId?: number): Promise<void> {
   console.log('=== Starting bulk torrent cache population ===');
   const storage = new StorageManager(env);
   const rd = new RealDebridClient(env);
@@ -16,31 +16,60 @@ export async function populateAllTorrentDetails(env: Env): Promise<void> {
   
   if (uncachedTorrents.length === 0) {
     console.log('All torrents already cached');
+    if (refreshId) {
+      await storage.completeCacheRefresh(refreshId, true);
+    }
     return;
   }
   
-  // Process in batches of 10 to avoid timeouts
-  for (let i = 0; i < uncachedTorrents.length; i += 10) {
-    const batch = uncachedTorrents.slice(i, i + 10);
-    console.log(`Processing batch ${Math.floor(i/10) + 1}/${Math.ceil(uncachedTorrents.length/10)} (${batch.length} torrents)`);
-    
-    await Promise.all(batch.map(async (torrent) => {
-      try {
-        console.log(`Fetching details for: ${torrent.name}`);
-        const details = await rd.getTorrentInfo(torrent.id);
-        if (details) {
-          const convertedTorrent = convertToTorrent(details);
-          convertedTorrent.cacheTimestamp = Date.now();
-          await storage.saveTorrentDetails(torrent.id, convertedTorrent);
-          console.log(`✅ Cached ${torrent.name} (${Object.keys(convertedTorrent.selectedFiles).length} files)`);
-        }
-      } catch (error) {
-        console.error(`❌ Failed to cache ${torrent.name}:`, error);
-      }
-    }));
+  // Start progress tracking if not provided
+  if (!refreshId) {
+    refreshId = await storage.startCacheRefresh(uncachedTorrents.length);
   }
   
-  console.log('✅ Bulk cache population complete');
+  let processedCount = 0;
+  
+  try {
+    // Process in batches of 10 to avoid timeouts
+    for (let i = 0; i < uncachedTorrents.length; i += 10) {
+      const batch = uncachedTorrents.slice(i, i + 10);
+      console.log(`Processing batch ${Math.floor(i/10) + 1}/${Math.ceil(uncachedTorrents.length/10)} (${batch.length} torrents)`);
+      
+      await Promise.all(batch.map(async (torrent) => {
+        try {
+          console.log(`Fetching details for: ${torrent.name}`);
+          
+          // Update progress with current torrent
+          await storage.updateCacheProgress(refreshId!, processedCount, torrent.name);
+          
+          const details = await rd.getTorrentInfo(torrent.id);
+          if (details) {
+            const convertedTorrent = convertToTorrent(details);
+            convertedTorrent.cacheTimestamp = Date.now();
+            await storage.saveTorrentDetails(torrent.id, convertedTorrent);
+            console.log(`✅ Cached ${torrent.name} (${Object.keys(convertedTorrent.selectedFiles).length} files)`);
+          }
+          
+          processedCount++;
+          await storage.updateCacheProgress(refreshId!, processedCount);
+          
+        } catch (error) {
+          console.error(`❌ Failed to cache ${torrent.name}:`, error);
+          processedCount++; // Still count as processed even if failed
+          await storage.updateCacheProgress(refreshId!, processedCount);
+        }
+      }));
+    }
+    
+    // Mark as completed
+    await storage.completeCacheRefresh(refreshId, true);
+    console.log('✅ Bulk cache population complete');
+    
+  } catch (error) {
+    console.error('❌ Cache population failed:', error);
+    await storage.completeCacheRefresh(refreshId, false, error instanceof Error ? error.message : 'Unknown error');
+    throw error;
+  }
 }
 // Check if cache population is needed and trigger if so
 export async function maybePopulateCache(env: Env): Promise<void> {

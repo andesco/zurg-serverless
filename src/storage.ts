@@ -489,4 +489,67 @@ export class StorageManager {
       .bind(torrent.name, accessKey) // Use exact torrent name as directory
       .run();
   }
+  
+  // === Cache Progress Tracking ===
+  
+  async startCacheRefresh(totalTorrents: number): Promise<number> {
+    const refreshId = Date.now(); // Use timestamp as simple ID
+    
+    await this.db.prepare(`
+      INSERT INTO refresh_progress (id, status, total_torrents, processed_torrents, started_at)
+      VALUES (?, 'running', ?, 0, ?)
+    `).bind(refreshId, totalTorrents, Date.now()).run();
+    
+    console.log(`Started cache refresh tracking: ID ${refreshId}, ${totalTorrents} torrents`);
+    return refreshId;
+  }
+  
+  async updateCacheProgress(refreshId: number, processedTorrents: number, currentTorrent?: string): Promise<void> {
+    await this.db.prepare(`
+      UPDATE refresh_progress 
+      SET processed_torrents = ?, current_torrent = ?, updated_at = ?
+      WHERE id = ?
+    `).bind(processedTorrents, currentTorrent || null, Date.now(), refreshId).run();
+  }
+  
+  async completeCacheRefresh(refreshId: number, success: boolean, errorMessage?: string): Promise<void> {
+    const status = success ? 'completed' : 'failed';
+    
+    await this.db.prepare(`
+      UPDATE refresh_progress 
+      SET status = ?, completed_at = ?, error_message = ?, updated_at = ?
+      WHERE id = ?
+    `).bind(status, Date.now(), errorMessage || null, Date.now(), refreshId).run();
+    
+    console.log(`Cache refresh ${refreshId} ${status}${errorMessage ? `: ${errorMessage}` : ''}`);
+  }
+  
+  async getCacheRefreshStatus(refreshId?: number): Promise<any | null> {
+    let query;
+    if (refreshId) {
+      query = this.db.prepare(`
+        SELECT * FROM refresh_progress WHERE id = ? ORDER BY started_at DESC LIMIT 1
+      `).bind(refreshId);
+    } else {
+      // Get latest refresh status
+      query = this.db.prepare(`
+        SELECT * FROM refresh_progress ORDER BY started_at DESC LIMIT 1
+      `);
+    }
+    
+    const result = await query.first();
+    return result || null;
+  }
+  
+  async cleanupOldRefreshProgress(): Promise<void> {
+    // Keep only last 10 refresh records
+    await this.db.prepare(`
+      DELETE FROM refresh_progress 
+      WHERE id NOT IN (
+        SELECT id FROM refresh_progress 
+        ORDER BY started_at DESC 
+        LIMIT 10
+      )
+    `).run();
+  }
 }

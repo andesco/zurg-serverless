@@ -68,6 +68,20 @@ CREATE TABLE IF NOT EXISTS cache_settings (
     updated_at INTEGER DEFAULT (strftime('%s', 'now'))
 );
 
+-- Cache refresh progress tracking
+CREATE TABLE IF NOT EXISTS refresh_progress (
+    id INTEGER PRIMARY KEY,
+    status TEXT NOT NULL CHECK (status IN ('running', 'completed', 'failed')),
+    total_torrents INTEGER DEFAULT 0,
+    processed_torrents INTEGER DEFAULT 0,
+    current_torrent TEXT,
+    started_at INTEGER NOT NULL,
+    completed_at INTEGER,
+    error_message TEXT,
+    created_at INTEGER DEFAULT (strftime('%s', 'now')),
+    updated_at INTEGER DEFAULT (strftime('%s', 'now'))
+);
+
 -- Indexes for performance
 CREATE INDEX IF NOT EXISTS idx_torrents_state ON torrents(state);
 CREATE INDEX IF NOT EXISTS idx_torrents_id ON torrents(id);

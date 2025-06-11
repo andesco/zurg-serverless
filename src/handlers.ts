@@ -19,7 +19,7 @@ export async function maybeRefreshTorrents(env: Env): Promise<void> {
   }
 }
 
-// Light refresh - only fetch torrent list, no details
+// Enhanced refresh - fetch torrent list + details for new torrents
 async function refreshTorrentList(env: Env, storage: StorageManager): Promise<void> {
   console.log('=== Starting torrent list refresh ===');
   const rd = new RealDebridClient(env);
@@ -35,6 +35,15 @@ async function refreshTorrentList(env: Env, storage: StorageManager): Promise<vo
       t.status === 'downloaded' && t.progress === 100
     );
     console.log(`Found ${downloadedTorrents.length} downloaded torrents`);
+    
+    // Get current cached torrent IDs to detect new ones
+    const currentTorrentIds = new Set(downloadedTorrents.map(t => t.id));
+    const previousTorrentIds = await storage.getCachedTorrentIds();
+    const newTorrentIds = previousTorrentIds 
+      ? Array.from(currentTorrentIds).filter(id => !previousTorrentIds.has(id))
+      : [];
+    
+    console.log(`📊 Cache analysis: ${downloadedTorrents.length} total, ${newTorrentIds.length} new torrents`);
     
     // Build simple directory map - each torrent is its own directory
     // IMPORTANT: Preserve existing cached details
@@ -65,7 +74,44 @@ async function refreshTorrentList(env: Env, storage: StorageManager): Promise<vo
       directoryMap[directoryName] = { [rdTorrent.id]: torrent };
     }
     
-    console.log(`✅ Torrent list refresh complete: ${downloadedTorrents.length} torrents processed`);
+    // Proactively fetch details for up to 5 newest torrents
+    if (newTorrentIds.length > 0) {
+      const immediateLimit = Math.min(5, newTorrentIds.length);
+      const immediateTorrents = newTorrentIds.slice(0, immediateLimit);
+      
+      console.log(`🚀 Proactively fetching details for ${immediateLimit} newest torrents...`);
+      
+      for (const torrentId of immediateTorrents) {
+        try {
+          const rdTorrent = downloadedTorrents.find(t => t.id === torrentId);
+          if (!rdTorrent) continue;
+          
+          console.log(`📥 Fetching details for new torrent: ${rdTorrent.filename}`);
+          const torrentInfo = await rd.getTorrentInfo(torrentId);
+          
+          if (torrentInfo) {
+            const detailedTorrent = convertToTorrent(torrentInfo);
+            detailedTorrent.cacheTimestamp = Date.now();
+            
+            // Update the directory map with detailed info
+            const directoryName = rdTorrent.filename;
+            if (directoryMap[directoryName] && directoryMap[directoryName][torrentId]) {
+              directoryMap[directoryName][torrentId] = detailedTorrent;
+              console.log(`✅ Cached details for ${rdTorrent.filename} (${Object.keys(detailedTorrent.selectedFiles).length} files)`);
+            }
+          }
+        } catch (error) {
+          console.error(`❌ Failed to fetch details for new torrent ${torrentId}:`, error);
+          // Continue with other torrents
+        }
+      }
+      
+      if (newTorrentIds.length > immediateLimit) {
+        console.log(`⏳ ${newTorrentIds.length - immediateLimit} additional new torrents will be cached by background processing`);
+      }
+    }
+    
+    console.log(`✅ Torrent list refresh complete: ${downloadedTorrents.length} torrents processed, ${Math.min(5, newTorrentIds.length)} detailed immediately`);
     
     // Save to database
     await storage.setDirectoryMap(directoryMap);
