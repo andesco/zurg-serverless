@@ -45,8 +45,9 @@ export async function handleSTRMDownload(
       }
       
       if (!downloadUrl) {
-        console.log('STRM Download - Unable to resolve or refresh download link:', strmCode);
-        return new Response('STRM code not found or expired', { status: 404 });
+        console.log('STRM Download - Unable to resolve download link, using fallback:', strmCode);
+        // Use fallback URL for broken/expired links
+        downloadUrl = `${env.BASE_URL || 'https://zurg.andrewe.dev'}/not_found.mp4`;
       }
     }
 

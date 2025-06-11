@@ -1855,7 +1855,6 @@ export class HTMLBrowser {
   // Generate torrent files page - shows files within a torrent
   async generateTorrentFilesPage(torrentName: string, torrent: Torrent): Promise<string> {
     const fileItems = Object.entries(torrent.selectedFiles)
-      .filter(([_, file]) => file.state === 'ok_file')
       .map(([filename, file]) => {
         
         // Grid view card
@@ -1872,6 +1871,7 @@ export class HTMLBrowser {
                   <div class="space-y-1">
                     <p class="font-medium text-sm line-clamp-2" title="${this.escapeHtml(filename)}">${this.escapeHtml(filename)}</p>
                     <p class="text-xs text-muted-foreground">${this.formatBytes(file.bytes)}</p>
+                    ${file.state !== 'ok_file' ? '<p class="text-xs text-orange-600">⚠️ File unavailable</p>' : ''}
                   </div>
                 </div>
               </div>
@@ -1893,6 +1893,7 @@ export class HTMLBrowser {
                   <div class="flex-1 min-w-0">
                     <h3 class="font-medium text-sm truncate">${this.escapeHtml(filename)}</h3>
                     <p class="text-xs text-muted-foreground">${this.formatBytes(file.bytes)}</p>
+                    ${file.state !== 'ok_file' ? '<p class="text-xs text-orange-600">⚠️ File unavailable</p>' : ''}
                   </div>
                 </div>
               </div>

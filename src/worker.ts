@@ -503,16 +503,14 @@ async function handleFilesRequest(pathSegments: string[], storage: StorageManage
       return new Response('File not found', { status: 404 });
     }
     
-    // Fetch fresh download link when downloading STRM file (one of the 3 allowed scenarios)
+    // Try to get fresh download link if missing, but proceed regardless
     let downloadLink = file.link;
-    if (!downloadLink) {
+    if (!downloadLink && file.state === 'ok_file') {
       console.log(`🔗 Fetching fresh download link for STRM download: ${fileName}`);
       downloadLink = await fetchFileDownloadLink(torrent.id, fileName, env, storage);
-      if (!downloadLink) {
-        return new Response('Download link not available', { status: 404 });
-      }
     }
     
+    // Always generate STRM content (with fallback if no valid link)
     const webdav = new (await import('./webdav')).WebDAVGenerator(env, request);
     const strmContent = await webdav.generateSTRMContent(torrentName, torrent.id, fileName, downloadLink);
     
