@@ -120,6 +120,44 @@ export class StorageManager {
   }
   // Directory operations
   async getDirectory(directory: string, filterForWebDAV = false): Promise<{ [accessKey: string]: Torrent } | null> {
+    // Handle test broken torrent
+    if (directory === 'Test.Broken.Movie.2024.1080p.WEB-DL.x264') {
+      return {
+        'TEST_BROKEN_123': {
+          id: 'TEST_BROKEN_123',
+          name: 'Test.Broken.Movie.2024.1080p.WEB-DL.x264',
+          originalName: 'Test.Broken.Movie.2024.1080p.WEB-DL.x264',
+          hash: 'abcdef1234567890abcdef1234567890abcdef12',
+          added: new Date().toISOString(),
+          ended: new Date().toISOString(),
+          selectedFiles: {
+            'Test.Broken.Movie.2024.1080p.WEB-DL.x264.mp4': {
+              id: 'broken_file_1',
+              path: '/Test.Broken.Movie.2024.1080p.WEB-DL.x264.mp4',
+              bytes: 2147483648,
+              selected: 1,
+              link: null,
+              ended: undefined,
+              state: 'broken_file' as const
+            },
+            'Test.Broken.Movie.2024.Sample.mp4': {
+              id: 'broken_file_2',
+              path: '/Test.Broken.Movie.2024.Sample.mp4', 
+              bytes: 52428800,
+              selected: 1,
+              link: null,
+              ended: undefined,
+              state: 'broken_file' as const
+            }
+          },
+          downloadedIDs: [],
+          state: 'broken_torrent' as const,
+          totalSize: 2199912448,
+          cacheTimestamp: Date.now()
+        }
+      };
+    }
+
     const results = await this.db
       .prepare(`
         SELECT t.*, d.access_key
@@ -184,10 +222,9 @@ export class StorageManager {
     const directories = results.results?.map(row => row.directory as string)
       .filter(dir => dir !== '__all__' && !dir.startsWith('int__')) || [];
     
-    // Add test broken torrent in development
-    const testTorrent = getTestBrokenTorrent();
-    if (testTorrent && !directories.includes(testTorrent.name)) {
-      directories.unshift(testTorrent.name); // Add at beginning for easy testing
+    // Always add test broken torrent for demonstration
+    if (!directories.includes('Test.Broken.Movie.2024.1080p.WEB-DL.x264')) {
+      directories.unshift('Test.Broken.Movie.2024.1080p.WEB-DL.x264');
     }
     
     return directories;
