@@ -120,6 +120,7 @@ export interface DirectoryMap {
 export interface CacheMetadata {
   lastRefresh: number;
   libraryChecksum: string;
+  torrentIds?: string[];
 }
 
 export interface STRMContent {

@@ -21,9 +21,10 @@ export class StorageManager {
   }
 
   async setCacheMetadata(metadata: CacheMetadata): Promise<void> {
+    const torrentIdsJson = metadata.torrentIds ? JSON.stringify(metadata.torrentIds) : null;
     await this.db
-      .prepare('INSERT OR REPLACE INTO cache_metadata (id, last_refresh, library_checksum) VALUES (1, ?, ?)')
-      .bind(metadata.lastRefresh, metadata.libraryChecksum)
+      .prepare('INSERT OR REPLACE INTO cache_metadata (id, last_refresh, library_checksum, torrent_ids) VALUES (1, ?, ?, ?)')
+      .bind(metadata.lastRefresh, metadata.libraryChecksum, torrentIdsJson)
       .run();
   }
 

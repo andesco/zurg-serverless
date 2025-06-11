@@ -118,6 +118,7 @@ async function refreshTorrentList(env: Env, storage: StorageManager): Promise<vo
     await storage.setCacheMetadata({
       lastRefresh: Date.now(),
       libraryChecksum: JSON.stringify(downloadedTorrents.map(t => t.id).sort()).length.toString(),
+      torrentIds: downloadedTorrents.map(t => t.id)
     });
     
   } catch (error) {
