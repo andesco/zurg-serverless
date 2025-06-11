@@ -103,37 +103,7 @@ export async function populateAllTorrentDetails(env: Env, refreshId?: number): P
     throw error;
   }
 }
-          }
-          
-          processedCount++;
-          await storage.updateCacheProgress(refreshId!, processedCount);
-          
-        } catch (error) {
-          console.error(`❌ Failed to cache ${torrent.name}:`, error);
-          processedCount++; // Still count as processed even if failed
-          failureCount++;
-          await storage.updateCacheProgress(refreshId!, processedCount);
-        }
-      }));
-      
-      // Small delay between batches to prevent overwhelming the API
-      if (i + batchSize < uncachedTorrents.length) {
-        await new Promise(resolve => setTimeout(resolve, 1000));
-      }
-    }
-    
-    // Mark as completed
-    const completionMessage = `Successfully cached ${successCount} torrents, ${failureCount} failures`;
-    await storage.completeCacheRefresh(refreshId, true, completionMessage);
-    console.log(`✅ Bulk cache population complete: ${completionMessage}`);
-    
-  } catch (error) {
-    console.error('❌ Cache population failed:', error);
-    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-    await storage.completeCacheRefresh(refreshId, false, `Failed after processing ${processedCount}/${uncachedTorrents.length}: ${errorMessage}`);
-    throw error;
-  }
-}
+
 // Check if cache population is needed and trigger if so
 export async function maybePopulateCache(env: Env): Promise<void> {
   const storage = new StorageManager(env);
