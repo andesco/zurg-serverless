@@ -106,7 +106,7 @@ export default {
         }
       }
 
-      if (pathSegments[0] === 'admin' && pathSegments[1] === 'populate-cache') {
+      if (pathSegments[0] === 'admin' && pathSegments[1] === 'update-cache') {
         console.log('Manual cache population triggered');
         await populateAllTorrentDetails(env);
         return new Response('Cache population started', { 
@@ -115,9 +115,9 @@ export default {
         });
       }
 
-      // Admin endpoint to clear stale refresh status
-      if (pathSegments[0] === 'admin' && pathSegments[1] === 'clear-stale-refresh') {
-        console.log('Clearing stale refresh status');
+      // Admin endpoint to check cache progress and clear stale status
+      if (pathSegments[0] === 'admin' && pathSegments[1] === 'check-cache-progress') {
+        console.log('Checking cache progress and clearing stale refresh status');
         const storage = new StorageManager(env);
         await storage.cleanupStaleRefreshProgress();
         
@@ -127,7 +127,7 @@ export default {
           await storage.completeCacheRefresh(currentStatus.id, false, 'Manually cleared via admin endpoint');
         }
         
-        return new Response('Stale refresh status cleared', { 
+        return new Response('Cache progress checked and stale status cleared', { 
           status: 200,
           headers: { 'Content-Type': 'text/plain' }
         });

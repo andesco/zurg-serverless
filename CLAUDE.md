@@ -477,8 +477,8 @@ This change transforms "Zurg Serverless" from purely reactive caching to intelli
 - **Timeout handling**: Stale refreshes older than 30 minutes are automatically cleared
 
 #### New Admin Endpoints:
-- `/admin/populate-cache` - Manually trigger cache population
-- `/admin/clear-stale-refresh` - Clear stuck refresh progress status
+- `/admin/update-cache` - Manually trigger cache population
+- `/admin/check-cache-progress` - Check cache progress and clear stuck refresh status
 
 #### Technical Improvements:
 - **Batch processing**: 5 torrents per batch with 1-second delays between batches
