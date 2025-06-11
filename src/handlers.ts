@@ -130,6 +130,43 @@ async function refreshTorrentList(env: Env, storage: StorageManager): Promise<vo
 export async function fetchTorrentDetails(torrentName: string, env: Env, storage: StorageManager): Promise<Torrent | null> {
   console.log(`=== Fetching details for torrent ${torrentName} ===`);
   
+  // Handle test broken torrent
+  if (torrentName === 'Test.Broken.Movie.2024.1080p.WEB-DL.x264') {
+    console.log('Test broken torrent - returning test data');
+    return {
+      id: 'TEST_BROKEN_123',
+      name: 'Test.Broken.Movie.2024.1080p.WEB-DL.x264',
+      originalName: 'Test.Broken.Movie.2024.1080p.WEB-DL.x264',
+      hash: 'abcdef1234567890abcdef1234567890abcdef12',
+      added: new Date().toISOString(),
+      ended: new Date().toISOString(),
+      selectedFiles: {
+        'Test.Broken.Movie.2024.1080p.WEB-DL.x264.mp4': {
+          id: 'broken_file_1',
+          path: '/Test.Broken.Movie.2024.1080p.WEB-DL.x264.mp4',
+          bytes: 2147483648,
+          selected: 1,
+          link: null,
+          ended: undefined,
+          state: 'broken_file' as const
+        },
+        'Test.Broken.Movie.2024.Sample.mp4': {
+          id: 'broken_file_2',
+          path: '/Test.Broken.Movie.2024.Sample.mp4',
+          bytes: 52428800,
+          selected: 1,
+          link: null,
+          ended: undefined,
+          state: 'broken_file' as const
+        }
+      },
+      downloadedIDs: [],
+      state: 'broken_torrent' as const,
+      totalSize: 2199912448,
+      cacheTimestamp: Date.now()
+    };
+  }
+  
   // First get the torrent from the directory to find its ID
   console.log(`🔍 Looking for directory: ${torrentName}`);
   const directoryTorrents = await storage.getDirectory(torrentName);
@@ -209,6 +246,12 @@ export async function fetchTorrentDetails(torrentName: string, env: Env, storage
 // Fetch fresh download link for a specific file (only when needed)
 export async function fetchFileDownloadLink(torrentId: string, filename: string, env: Env, storage: StorageManager): Promise<string | null> {
   console.log(`=== Fetching download link for ${filename} in torrent ${torrentId} ===`);
+  
+  // Handle test broken torrent
+  if (torrentId === 'TEST_BROKEN_123') {
+    console.log('Test broken torrent - returning null for fallback');
+    return null;
+  }
   
   try {
     const rd = new RealDebridClient(env);
