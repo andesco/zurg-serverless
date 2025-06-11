@@ -81,7 +81,7 @@ export async function populateAllTorrentDetails(env: Env, refreshId?: number): P
       
       // Adaptive delay between batches to respect API rate limits
       if (i + batchSize < torrentsToProcess) {
-        const delaySeconds = batchNumber === 1 ? 10 : 10 + batchNumber; // 10s first, then +1s each batch
+        const delaySeconds = 20; // Fixed 20 seconds between all batches
         console.log(`Waiting ${delaySeconds}s before next batch to respect API limits...`);
         await new Promise(resolve => setTimeout(resolve, delaySeconds * 1000));
       }
