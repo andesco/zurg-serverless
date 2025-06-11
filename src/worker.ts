@@ -517,7 +517,7 @@ async function handleFilesRequest(pathSegments: string[], storage: StorageManage
     return new Response(strmContent.content, {
       status: 200,
       headers: {
-        'Content-Type': 'application/x-stream',
+        'Content-Type': 'text/plain',
         'Content-Disposition': `attachment; filename="${strmFileName}"`,
         'Content-Length': strmContent.size.toString()
       }

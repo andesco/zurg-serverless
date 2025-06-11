@@ -27,26 +27,30 @@ export async function handleSTRMDownload(
       if (strmInfo) {
         console.log(`🔗 Fetching fresh download link for expired STRM: ${strmInfo.filename}`);
         
-        // Fetch fresh download link (one of the 3 allowed scenarios)
-        const { fetchFileDownloadLink } = await import('./handlers');
-        const freshLink = await fetchFileDownloadLink(strmInfo.torrentId, strmInfo.filename, env, storage);
-        
-        if (freshLink) {
-          // Update the STRM cache with fresh link
-          const newCode = await cacheManager.getOrCreateSTRMCode(
-            strmInfo.directory, 
-            strmInfo.torrentId, 
-            strmInfo.filename, 
-            freshLink
-          );
-          downloadUrl = freshLink;
-          console.log(`✅ Updated STRM cache with fresh download link`);
+        try {
+          // Fetch fresh download link (one of the 3 allowed scenarios)
+          const { fetchFileDownloadLink } = await import('./handlers');
+          const freshLink = await fetchFileDownloadLink(strmInfo.torrentId, strmInfo.filename, env, storage);
+          
+          if (freshLink) {
+            // Update the STRM cache with fresh link
+            const newCode = await cacheManager.getOrCreateSTRMCode(
+              strmInfo.directory, 
+              strmInfo.torrentId, 
+              strmInfo.filename, 
+              freshLink
+            );
+            downloadUrl = freshLink;
+            console.log(`✅ Updated STRM cache with fresh download link`);
+          }
+        } catch (error) {
+          console.warn(`⚠️ Failed to fetch fresh download link: ${error instanceof Error ? error.message : 'Unknown error'}`);
+          // Continue to fallback below
         }
       }
       
       if (!downloadUrl) {
-        console.log('STRM Download - Unable to resolve download link, using fallback:', strmCode);
-        // Use fallback URL for broken/expired links
+        console.log('STRM Download - Using fallback for unavailable link:', strmCode);
         downloadUrl = `${env.BASE_URL || 'https://zurg.andrewe.dev'}/not_found.mp4`;
       }
     }
