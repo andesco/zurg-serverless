@@ -53,7 +53,26 @@ wrangler secret put PASSWORD
 |-----------|-----|---------|
 | **File Browser** | `https://your-worker.workers.dev/` | web interface |
 | **WebDAV** | `https://your-worker.workers.dev/dav` | standard endpoint|
-| **WebDAV for Infuse** | `https://your-worker.workers.dev/infuse` | optimized endpoint |
+| **WebDAV for Infuse** | `https://your-worker.workers.dev/infuse` | optimized endpoint |
+
+## How Caching Works
+
+### Smart Caching Strategy
+- **Root Browse**: Fetches torrent list + details for 5 newest torrents (proactive)
+- **Individual Access**: Fetches torrent details on-demand when browsed
+- **STRM Generation**: Creates download links when .strm files are accessed
+- **Hourly Cron**: Processes up to 100 uncached torrents with 20-second delays
+
+### Cache Lifecycle
+1. **Torrent List**: Updated every 15 seconds, identifies new additions
+2. **File Details**: Cached for 7 days, refreshed when accessed
+3. **Download Links**: Cached for 7 days, regenerated when expired
+4. **Background Processing**: Hourly job fills remaining cache gaps
+
+### API Rate Limiting
+- **Conservative batching**: 5 torrents per batch with 20+ second delays
+- **Respects Real-Debrid limits**: ~14 calls/minute (well under 20/minute limit)
+- **Fallback handling**: Broken files use `/not_found.mp4` placeholder
 
 ## Configuration
 
