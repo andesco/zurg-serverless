@@ -35,11 +35,19 @@ export async function populateAllTorrentDetails(env: Env, refreshId?: number): P
   let failureCount = 0;
   
   try {
-    // Process in batches of 5 to avoid timeouts (reduced from 10 for better reliability)
+    // Conservative batching to respect Real-Debrid API limits
     const batchSize = 5;
-    for (let i = 0; i < uncachedTorrents.length; i += batchSize) {
+    const maxTorrentsPerCron = 100;
+    const torrentsToProcess = Math.min(uncachedTorrents.length, maxTorrentsPerCron);
+    const batchesToProcess = Math.ceil(torrentsToProcess / batchSize);
+    
+    console.log(`Processing ${torrentsToProcess} of ${uncachedTorrents.length} uncached torrents in ${batchesToProcess} batches`);
+    
+    for (let i = 0; i < torrentsToProcess; i += batchSize) {
       const batch = uncachedTorrents.slice(i, i + batchSize);
-      console.log(`Processing batch ${Math.floor(i/batchSize) + 1}/${Math.ceil(uncachedTorrents.length/batchSize)} (${batch.length} torrents)`);
+      const batchNumber = Math.floor(i / batchSize) + 1;
+      
+      console.log(`Processing batch ${batchNumber}/${batchesToProcess} (${batch.length} torrents)`);
       
       await Promise.all(batch.map(async (torrent) => {
         try {
@@ -71,16 +79,22 @@ export async function populateAllTorrentDetails(env: Env, refreshId?: number): P
         }
       }));
       
-      // Small delay between batches to prevent overwhelming the API
-      if (i + batchSize < uncachedTorrents.length) {
-        await new Promise(resolve => setTimeout(resolve, 1000));
+      // Adaptive delay between batches to respect API rate limits
+      if (i + batchSize < torrentsToProcess) {
+        const delaySeconds = batchNumber === 1 ? 13 : 13 + batchNumber; // 13s first, then +1s each batch
+        console.log(`Waiting ${delaySeconds}s before next batch to respect API limits...`);
+        await new Promise(resolve => setTimeout(resolve, delaySeconds * 1000));
       }
     }
     
-    // Mark as completed
-    const completionMessage = `Successfully cached ${successCount} torrents, ${failureCount} failures`;
-    await storage.completeCacheRefresh(refreshId, true, completionMessage);
-    console.log(`✅ Bulk cache population complete: ${completionMessage}`);
+    // Mark as completed (or partially completed if we hit the limit)
+    const remaining = uncachedTorrents.length - torrentsToProcess;
+    const completionMessage = remaining > 0 
+      ? `Processed ${torrentsToProcess} torrents (${successCount} success, ${failureCount} failures), ${remaining} remaining for next cron job`
+      : `Successfully cached ${successCount} torrents, ${failureCount} failures`;
+      
+    await storage.completeCacheRefresh(refreshId, remaining === 0, completionMessage);
+    console.log(`✅ Cache population batch complete: ${completionMessage}`);
     
   } catch (error) {
     console.error('❌ Cache population failed:', error);
