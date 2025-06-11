@@ -552,4 +552,22 @@ export class StorageManager {
       )
     `).run();
   }
+  
+  async cleanupStaleRefreshProgress(): Promise<void> {
+    const now = Date.now();
+    const oneHourAgo = now - (60 * 60 * 1000); // 1 hour in milliseconds
+    
+    // Find and complete any stale "running" refreshes older than 1 hour
+    const staleRefreshes = await this.db.prepare(`
+      SELECT id FROM refresh_progress 
+      WHERE status = 'running' AND started_at < ?
+    `).bind(oneHourAgo).all();
+    
+    for (const refresh of staleRefreshes.results) {
+      console.log(`Cleaning up stale refresh: ${refresh.id}`);
+      await this.completeCacheRefresh(refresh.id as number, false, 'Cleaned up stale refresh (timeout)');
+    }
+    
+    console.log(`Cleaned up ${staleRefreshes.results.length} stale refresh progress entries`);
+  }
 }

@@ -461,4 +461,31 @@ This approach ensures security while maintaining the convenience of one-click de
 
 This change transforms "Zurg Serverless" from purely reactive caching to intelligently proactive caching for new content.
 
+### 2025-06-11 - Fixed Cron Job Cache Population Issues
+- ✅ **Fixed stale "In Progress" status**: Cron job now properly cleans up stale refresh progress before starting
+- ✅ **Enhanced progress tracking**: Improved cache population with better error handling and completion tracking
+- ✅ **Stale refresh cleanup**: Added `cleanupStaleRefreshProgress()` method to handle stuck refresh states
+- ✅ **Reduced batch size**: Changed from 10 to 5 torrents per batch for better reliability
+- ✅ **Better logging**: Added success/failure counts and detailed completion messages
+- ✅ **Cron job protection**: Prevents multiple simultaneous cache refreshes and clears stale states
+- ✅ **Admin endpoint**: Added `/admin/clear-stale-refresh` to manually clear stuck refresh status
+
+#### Issues Resolved:
+- **"In Progress" stuck for days**: Cron job creates proper refresh tracking and completion
+- **Multiple refresh entries**: Cleanup prevents accumulation of stale progress records
+- **Failed cron execution**: Better error handling and batch processing reliability
+- **Timeout handling**: Stale refreshes older than 30 minutes are automatically cleared
+
+#### New Admin Endpoints:
+- `/admin/populate-cache` - Manually trigger cache population
+- `/admin/clear-stale-refresh` - Clear stuck refresh progress status
+
+#### Technical Improvements:
+- **Batch processing**: 5 torrents per batch with 1-second delays between batches
+- **Progress tracking**: Real-time updates with current torrent name and counts
+- **Error resilience**: Failed individual torrents don't stop the entire process
+- **Completion guarantee**: All cache operations now properly mark as "completed" or "failed"
+
+This fixes the persistent "In Progress" status that was preventing proper cache status display and ensures the hourly cron job works reliably.
+
 

@@ -17,7 +17,7 @@ export async function populateAllTorrentDetails(env: Env, refreshId?: number): P
   if (uncachedTorrents.length === 0) {
     console.log('All torrents already cached');
     if (refreshId) {
-      await storage.completeCacheRefresh(refreshId, true);
+      await storage.completeCacheRefresh(refreshId, true, 'All torrents already cached');
     }
     return;
   }
@@ -25,15 +25,21 @@ export async function populateAllTorrentDetails(env: Env, refreshId?: number): P
   // Start progress tracking if not provided
   if (!refreshId) {
     refreshId = await storage.startCacheRefresh(uncachedTorrents.length);
+    console.log(`Started new cache refresh with ID: ${refreshId}`);
+  } else {
+    console.log(`Using existing cache refresh ID: ${refreshId}`);
   }
   
   let processedCount = 0;
+  let successCount = 0;
+  let failureCount = 0;
   
   try {
-    // Process in batches of 10 to avoid timeouts
-    for (let i = 0; i < uncachedTorrents.length; i += 10) {
-      const batch = uncachedTorrents.slice(i, i + 10);
-      console.log(`Processing batch ${Math.floor(i/10) + 1}/${Math.ceil(uncachedTorrents.length/10)} (${batch.length} torrents)`);
+    // Process in batches of 5 to avoid timeouts (reduced from 10 for better reliability)
+    const batchSize = 5;
+    for (let i = 0; i < uncachedTorrents.length; i += batchSize) {
+      const batch = uncachedTorrents.slice(i, i + batchSize);
+      console.log(`Processing batch ${Math.floor(i/batchSize) + 1}/${Math.ceil(uncachedTorrents.length/batchSize)} (${batch.length} torrents)`);
       
       await Promise.all(batch.map(async (torrent) => {
         try {
@@ -48,6 +54,10 @@ export async function populateAllTorrentDetails(env: Env, refreshId?: number): P
             convertedTorrent.cacheTimestamp = Date.now();
             await storage.saveTorrentDetails(torrent.id, convertedTorrent);
             console.log(`✅ Cached ${torrent.name} (${Object.keys(convertedTorrent.selectedFiles).length} files)`);
+            successCount++;
+          } else {
+            console.warn(`⚠️ No details returned for ${torrent.name}`);
+            failureCount++;
           }
           
           processedCount++;
@@ -56,18 +66,57 @@ export async function populateAllTorrentDetails(env: Env, refreshId?: number): P
         } catch (error) {
           console.error(`❌ Failed to cache ${torrent.name}:`, error);
           processedCount++; // Still count as processed even if failed
+          failureCount++;
           await storage.updateCacheProgress(refreshId!, processedCount);
         }
       }));
+      
+      // Small delay between batches to prevent overwhelming the API
+      if (i + batchSize < uncachedTorrents.length) {
+        await new Promise(resolve => setTimeout(resolve, 1000));
+      }
     }
     
     // Mark as completed
-    await storage.completeCacheRefresh(refreshId, true);
-    console.log('✅ Bulk cache population complete');
+    const completionMessage = `Successfully cached ${successCount} torrents, ${failureCount} failures`;
+    await storage.completeCacheRefresh(refreshId, true, completionMessage);
+    console.log(`✅ Bulk cache population complete: ${completionMessage}`);
     
   } catch (error) {
     console.error('❌ Cache population failed:', error);
-    await storage.completeCacheRefresh(refreshId, false, error instanceof Error ? error.message : 'Unknown error');
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    await storage.completeCacheRefresh(refreshId, false, `Failed after processing ${processedCount}/${uncachedTorrents.length}: ${errorMessage}`);
+    throw error;
+  }
+}
+          }
+          
+          processedCount++;
+          await storage.updateCacheProgress(refreshId!, processedCount);
+          
+        } catch (error) {
+          console.error(`❌ Failed to cache ${torrent.name}:`, error);
+          processedCount++; // Still count as processed even if failed
+          failureCount++;
+          await storage.updateCacheProgress(refreshId!, processedCount);
+        }
+      }));
+      
+      // Small delay between batches to prevent overwhelming the API
+      if (i + batchSize < uncachedTorrents.length) {
+        await new Promise(resolve => setTimeout(resolve, 1000));
+      }
+    }
+    
+    // Mark as completed
+    const completionMessage = `Successfully cached ${successCount} torrents, ${failureCount} failures`;
+    await storage.completeCacheRefresh(refreshId, true, completionMessage);
+    console.log(`✅ Bulk cache population complete: ${completionMessage}`);
+    
+  } catch (error) {
+    console.error('❌ Cache population failed:', error);
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    await storage.completeCacheRefresh(refreshId, false, `Failed after processing ${processedCount}/${uncachedTorrents.length}: ${errorMessage}`);
     throw error;
   }
 }

@@ -115,6 +115,24 @@ export default {
         });
       }
 
+      // Admin endpoint to clear stale refresh status
+      if (pathSegments[0] === 'admin' && pathSegments[1] === 'clear-stale-refresh') {
+        console.log('Clearing stale refresh status');
+        const storage = new StorageManager(env);
+        await storage.cleanupStaleRefreshProgress();
+        
+        // Also force complete any "running" status
+        const currentStatus = await storage.getCacheRefreshStatus();
+        if (currentStatus && currentStatus.status === 'running') {
+          await storage.completeCacheRefresh(currentStatus.id, false, 'Manually cleared via admin endpoint');
+        }
+        
+        return new Response('Stale refresh status cleared', { 
+          status: 200,
+          headers: { 'Content-Type': 'text/plain' }
+        });
+      }
+
       // New progress-tracked cache refresh endpoint
       if (pathSegments[0] === 'refresh-cache') {
         if (request.method !== 'POST') {
@@ -318,6 +336,28 @@ export default {
   async scheduled(event: ScheduledEvent, env: Env, ctx: ExecutionContext): Promise<void> {
     console.log('=== CRON JOB: Cache population ===');
     try {
+      const storage = new StorageManager(env);
+      
+      // Clean up any stale refresh progress first
+      await storage.cleanupStaleRefreshProgress();
+      
+      // Check if there's already a refresh in progress
+      const currentStatus = await storage.getCacheRefreshStatus();
+      if (currentStatus && currentStatus.status === 'running') {
+        // Check if the refresh is stale (older than 30 minutes with no progress)
+        const now = Date.now();
+        const isStale = (now - currentStatus.started_at) > (30 * 60 * 1000);
+        
+        if (isStale) {
+          console.log(`Clearing stale refresh from cron: ${currentStatus.id}`);
+          await storage.completeCacheRefresh(currentStatus.id, false, 'Cleared stale refresh (cron timeout)');
+        } else {
+          console.log('Cache refresh already in progress, skipping cron job');
+          return;
+        }
+      }
+      
+      // Start cache population
       await populateAllTorrentDetails(env);
       console.log('✅ Scheduled cache population complete');
     } catch (error) {
