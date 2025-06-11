@@ -510,6 +510,12 @@ async function handleFilesRequest(pathSegments: string[], storage: StorageManage
       downloadLink = await fetchFileDownloadLink(torrent.id, fileName, env, storage);
     }
     
+    // For broken files, explicitly set downloadLink to null 
+    if (file.state !== 'ok_file') {
+      downloadLink = null;
+      console.log(`⚠️ File ${fileName} is broken, using fallback`);
+    }
+    
     // Always generate STRM content (with fallback if no valid link)
     const webdav = new (await import('./webdav')).WebDAVGenerator(env, request);
     let strmContent;
