@@ -1994,6 +1994,11 @@ export class HTMLBrowser {
     const strmFilename = this.generateSTRMFilename(fileName);
     const { title, year, season, episode } = this.extractMediaInfo(fileName);
     
+    // Generate STRM content to get short link
+    const webdav = new (await import('./webdav')).WebDAVGenerator(this.env, this.request);
+    const strmContent = await webdav.generateSTRMContent(torrentName, 'TORRENT_ID', fileName, file.link);
+    const strmShortUrl = strmContent.content.trim();
+    
     return `<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -2062,6 +2067,18 @@ export class HTMLBrowser {
                     <dt class="text-sm text-muted-foreground">Status:</dt>
                     <dd class="text-sm font-medium">
                       <span class="badge badge-success">${file.state}</span>
+                    </dd>
+                  </div>
+                  <div class="flex justify-between">
+                    <dt class="text-sm text-muted-foreground">STRM Short Link:</dt>
+                    <dd class="text-sm font-medium">
+                      <code class="text-xs bg-gray-100 dark:bg-gray-800 px-1 rounded">${strmShortUrl}</code>
+                    </dd>
+                  </div>
+                  <div class="flex justify-between">
+                    <dt class="text-sm text-muted-foreground">Cached URL:</dt>
+                    <dd class="text-sm font-medium">
+                      <code class="text-xs bg-gray-100 dark:bg-gray-800 px-1 rounded">${file.link || 'Not cached'}</code>
                     </dd>
                   </div>
                 </dl>
