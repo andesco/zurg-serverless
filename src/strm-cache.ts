@@ -27,7 +27,7 @@ export class STRMCacheManager {
     }
     return result;
   }
-  async getOrCreateSTRMCode(directory: string, torrentId: string, filename: string, fileLink: string): Promise<string> {
+  async getOrCreateSTRMCode(directory: string, torrentId: string, filename: string, fileLink: string | null): Promise<string> {
     const existingMapping = await this.db
       .prepare('SELECT strm_code, expires_at FROM strm_mappings WHERE directory = ? AND torrent_id = ? AND filename = ?')
       .bind(directory, torrentId, filename)
@@ -46,12 +46,24 @@ export class STRMCacheManager {
       await this.cleanupExpiredEntry(existingMapping.strm_code as string);
     }
     const strmCode = await this.generateUniqueCode();
-    console.log('STRM Cache - Generating new unrestricted link for:', filename);
-    const unrestrictedLink = await this.rd.unrestrictLink(fileLink);
+    
+    let downloadUrl: string;
+    
+    if (!fileLink) {
+      // Use fallback for broken files
+      console.log('STRM Cache - Using fallback for broken file:', filename);
+      downloadUrl = `${this.env.BASE_URL || 'https://zurg.andrewe.dev'}/not_found.mp4`;
+    } else {
+      // Unrestrict valid links
+      console.log('STRM Cache - Generating new unrestricted link for:', filename);
+      const unrestrictedLink = await this.rd.unrestrictLink(fileLink);
+      downloadUrl = unrestrictedLink.download;
+    }
+    
     const now = Date.now();
     const expiresAt = now + (this.CACHE_TTL_DAYS * 24 * 60 * 60 * 1000);
     const cacheEntry: STRMCacheEntry = {
-      downloadUrl: unrestrictedLink.download,
+      downloadUrl,
       torrentId,
       filename,
       directory,
