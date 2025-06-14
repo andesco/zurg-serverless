@@ -1,6 +1,6 @@
 # Zurg Serverless
 
-A modern, serverless Real-Debrid WebDAV server with HTML browser interface and .STRM file-based streaming, running on Cloudflare Workers.
+Share your Real Debrid library through a serverless WebDAV endpoint, using .STRM file-based streaming, running as a Cloudflare Worker.
 
 [![Deploy to Cloudflare Workers](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/andesco/zurg-serverless)
 
@@ -10,11 +10,11 @@ A modern, serverless Real-Debrid WebDAV server with HTML browser interface and .
 - **File Browser**: web interface for browsing your media library
 - **WebDAV endpoints**: compatible with media players, optimized for Infuse
 
-### Smart Streaming System
-- **.strm files only**: each contains a short link (e.g., `/strm/ABCD1234WXYZ5678`)
-- **consistent URLs**: links remain stable while redirecting to up-to-date Real Debrid download links
-- **intelligent caching**: 7-day URL caching with automatic regeneration
-- **error fallback**: .STRM redirects to an error video when media is unavailable.
+### Smart Streaming and Caching System
+- **.strm files**: each .strm file contains a permanent short link (e.g., `/strm/ABCD1234WXYZ5678`) which redirects to an up-to-date Real Debrid download link
+- **intelligent caching**: download links are requested on demand and cached for 7-days
+- error fallback: .STRM redirects to an error video when media is unavailable.
+- hourly cache update: processes up to 100 uncached torrents in about 10 minutes, updated once an hour or on-demand
 
 ### Serverless Architecture
 - **Cloudflare Workers**: Global edge computing
@@ -32,7 +32,7 @@ After deployment, add your secrets manually.
    `RD_TOKEN` https://real-debrid.com/apitoken \
    `USERNAME` \
    `PASSWORD`
-3. Deploy the changes
+3. Deploy.
 
 ### Command Line Deployment
 
@@ -53,7 +53,26 @@ wrangler secret put PASSWORD
 |-----------|-----|---------|
 | **File Browser** | `https://your-worker.workers.dev/` | web interface |
 | **WebDAV** | `https://your-worker.workers.dev/dav` | standard endpoint|
-| **WebDAV for Infuse** | `https://your-worker.workers.dev/infuse` | optimized endpoint |
+| **WebDAV for Infuse** | `https://your-worker.workers.dev/infuse` | optimized endpoint |
+
+## How Caching Works
+
+### Smart Caching Strategy
+- **Root Browse**: Fetches torrent list + details for 5 newest torrents (proactive)
+- **Individual Access**: Fetches torrent details on-demand when browsed
+- **STRM Generation**: Creates download links when .strm files are accessed
+- **Hourly Cron**: Processes up to 100 uncached torrents with 20-second delays
+
+### Cache Lifecycle
+1. **Torrent List**: Updated every 15 seconds, identifies new additions
+2. **File Details**: Cached for 7 days, refreshed when accessed
+3. **Download Links**: Cached for 7 days, regenerated when expired
+4. **Background Processing**: Hourly job fills remaining cache gaps
+
+### API Rate Limiting
+- **Conservative batching**: 5 torrents per batch with 20+ second delays
+- **Respects Real-Debrid limits**: ~14 calls/minute (well under 20/minute limit)
+- **Fallback handling**: Broken files use `/not_found.mp4` placeholder
 
 ## Configuration
 

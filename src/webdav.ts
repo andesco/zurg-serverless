@@ -10,13 +10,16 @@ export class WebDAVGenerator {
     this.baseURL = env.BASE_URL || new URL(request.url).origin;
   }
 
-  // STRM file utilities
-  async generateSTRMContent(directory: string, torrentKey: string, filename: string, fileLink: string): Promise<STRMContent> {
+  // STRM file utilities - always generates STRM files, uses fallback if no valid link
+  async generateSTRMContent(directory: string, torrentKey: string, filename: string, fileLink: string | null): Promise<STRMContent> {
     // Use the cache manager to get or create a short STRM code
     const cacheManager = new STRMCacheManager(this.env);
-    const strmCode = await cacheManager.getOrCreateSTRMCode(directory, torrentKey, filename, fileLink);
     
-    console.log('STRM Content Generation:', { directory, torrentKey, filename, strmCode });
+    // If no valid file link, use fallback URL
+    const effectiveLink = fileLink || `${this.baseURL}/not_found.mp4`;
+    const strmCode = await cacheManager.getOrCreateSTRMCode(directory, torrentKey, filename, effectiveLink);
+    
+    console.log('STRM Content Generation:', { directory, torrentKey, filename, strmCode, hasValidLink: !!fileLink });
     
     // STRM content should point to our short /strm/ endpoint
     const url = `${this.baseURL}/strm/${strmCode}`;

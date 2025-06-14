@@ -82,6 +82,11 @@ export class RealDebridClient {
         signal: controller.signal,
       });
 
+      // Log IP tracking info for debugging
+      const cfRay = response.headers.get('cf-ray');
+      const cfIp = response.headers.get('cf-connecting-ip');
+      console.log(`[RD_API] ${url} - Status: ${response.status}, CF-Ray: ${cfRay}, CF-IP: ${cfIp}`);
+
       if (!response.ok) {
         if (response.status === 429) {
           console.warn('[RD_API] Rate limited, retrying after delay...');

@@ -422,6 +422,128 @@ export class HTMLBrowser {
           }
         }
 
+        // Update cache with progress tracking
+        let currentRefreshId = null;
+        let progressInterval = null;
+
+        async function updateCache() {
+          const button = document.getElementById('update-cache-btn');
+          const buttonText = document.getElementById('update-cache-text');
+          const progressDiv = document.getElementById('cache-progress');
+          const progressText = document.getElementById('progress-text');
+          const progressBar = document.getElementById('progress-bar');
+
+          try {
+            // Disable button and show loading state
+            button.disabled = true;
+            buttonText.textContent = 'Starting...';
+            
+            // Start cache refresh
+            const response = await fetch('/refresh-cache', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' }
+            });
+            
+            const result = await response.json();
+            
+            if (!result.success) {
+              const errorMsg = result.error || result.message || 'Failed to start cache refresh';
+              
+              // Special handling for "already in progress" error
+              if (result.message && result.message.includes('already in progress')) {
+                if (result.details) {
+                  alert('Cache refresh is already running!\\n\\n' + result.details + '\\n\\nPlease wait for it to complete or try again in a few minutes.');
+                } else {
+                  alert('Cache refresh is already in progress. Please wait for it to complete.');
+                }
+                return;
+              }
+              
+              throw new Error(errorMsg);
+            }
+
+            // Show progress UI
+            currentRefreshId = result.refreshId;
+            progressDiv.classList.remove('hidden');
+            buttonText.textContent = 'Refreshing...';
+            progressText.textContent = \`Processing 0/\${result.totalTorrents} torrents...\`;
+
+            // Start polling for progress
+            progressInterval = setInterval(pollProgress, 2000);
+            
+          } catch (error) {
+            console.error('Cache refresh failed:', error);
+            buttonText.textContent = 'Update Cache';
+            button.disabled = false;
+            alert('Failed to start cache refresh: ' + error.message);
+          }
+        }
+
+        async function pollProgress() {
+          if (!currentRefreshId) return;
+
+          try {
+            const response = await fetch(\`/refresh-status?id=\${currentRefreshId}\`);
+            const result = await response.json();
+
+            if (!result.success) {
+              throw new Error('Failed to get refresh status');
+            }
+
+            const progressText = document.getElementById('progress-text');
+            const progressBar = document.getElementById('progress-bar');
+            const buttonText = document.getElementById('update-cache-text');
+
+            // Update progress display
+            const current = result.processed_torrents || 0;
+            const total = result.total_torrents || 0;
+            const progress = result.progress || 0;
+            
+            progressText.textContent = \`Processing \${current}/\${total} torrents...\`;
+            if (result.current_torrent) {
+              progressText.textContent += \` (\${result.current_torrent})\`;
+            }
+            progressBar.style.width = \`\${progress}%\`;
+
+            // Check if completed
+            if (result.status === 'completed') {
+              clearInterval(progressInterval);
+              progressInterval = null;
+              currentRefreshId = null;
+              
+              // Show success state
+              progressText.textContent = 'Cache refresh completed!';
+              progressBar.style.width = '100%';
+              buttonText.textContent = 'Update Cache';
+              document.getElementById('update-cache-btn').disabled = false;
+              
+              // Reload page after 2 seconds to show updated cache stats
+              setTimeout(() => {
+                window.location.reload();
+              }, 2000);
+              
+            } else if (result.status === 'failed') {
+              clearInterval(progressInterval);
+              progressInterval = null;
+              currentRefreshId = null;
+              
+              // Show error state
+              progressText.textContent = \`Cache refresh failed: \${result.error_message || 'Unknown error'}\`;
+              buttonText.textContent = 'Update Cache';
+              document.getElementById('update-cache-btn').disabled = false;
+            }
+
+          } catch (error) {
+            console.error('Failed to poll progress:', error);
+            clearInterval(progressInterval);
+            progressInterval = null;
+            currentRefreshId = null;
+            
+            document.getElementById('update-cache-text').textContent = 'Update Cache';
+            document.getElementById('update-cache-btn').disabled = false;
+          }
+        }
+
         // Close sidebar on resize if screen becomes large
         window.addEventListener('resize', () => {
           if (window.innerWidth >= 768) {
@@ -1412,7 +1534,7 @@ export class HTMLBrowser {
           </dl>
           ${missingSecrets ? `
           <div class="mt-4 pt-4 border-t">
-            <a href="https://developers.cloudflare.com/workers/configuration/environment-variables/#add-environment-variables-via-the-dashboard" target="_blank" class="btn btn-outline btn-sm inline-flex items-center">
+            <a href="https://dash.cloudflare.com/${this.env.API_ACCOUNT_ID}/workers-and-pages" target="_blank" class="btn btn-outline btn-sm inline-flex items-center">
               <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mr-2"><path d="M15 3h6v6"></path><path d="M10 14 21 3"></path><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path></svg>
               Add Missing Secrets
             </a>
@@ -1466,6 +1588,22 @@ export class HTMLBrowser {
                 </dd>
               </div>
             </dl>
+            ${cacheStats.pending > 0 || cacheStats.total === 0 ? `
+            <div class="mt-4 pt-4 border-t">
+              <button id="update-cache-btn" onclick="updateCache()" class="btn btn-outline btn-sm inline-flex items-center">
+                <i data-lucide="refresh-cw" class="w-4 h-4 mr-2"></i>
+                <span id="update-cache-text">Update Cache</span>
+              </button>
+              <div id="cache-progress" class="mt-3 hidden">
+                <div class="text-sm text-muted-foreground mb-2">
+                  <span id="progress-text">Starting cache refresh...</span>
+                </div>
+                <div class="w-full bg-muted rounded-full h-2">
+                  <div id="progress-bar" class="bg-primary h-2 rounded-full transition-all duration-300" style="width: 0%"></div>
+                </div>
+              </div>
+            </div>
+            ` : ''}
           </div>
         </div>
       `;
@@ -1717,7 +1855,6 @@ export class HTMLBrowser {
   // Generate torrent files page - shows files within a torrent
   async generateTorrentFilesPage(torrentName: string, torrent: Torrent): Promise<string> {
     const fileItems = Object.entries(torrent.selectedFiles)
-      .filter(([_, file]) => file.state === 'ok_file')
       .map(([filename, file]) => {
         
         // Grid view card
@@ -1734,6 +1871,7 @@ export class HTMLBrowser {
                   <div class="space-y-1">
                     <p class="font-medium text-sm line-clamp-2" title="${this.escapeHtml(filename)}">${this.escapeHtml(filename)}</p>
                     <p class="text-xs text-muted-foreground">${this.formatBytes(file.bytes)}</p>
+                    ${file.state !== 'ok_file' ? '<p class="text-xs text-orange-600">⚠️ File unavailable</p>' : ''}
                   </div>
                 </div>
               </div>
@@ -1755,6 +1893,7 @@ export class HTMLBrowser {
                   <div class="flex-1 min-w-0">
                     <h3 class="font-medium text-sm truncate">${this.escapeHtml(filename)}</h3>
                     <p class="text-xs text-muted-foreground">${this.formatBytes(file.bytes)}</p>
+                    ${file.state !== 'ok_file' ? '<p class="text-xs text-orange-600">⚠️ File unavailable</p>' : ''}
                   </div>
                 </div>
               </div>
@@ -1855,6 +1994,11 @@ export class HTMLBrowser {
     const strmFilename = this.generateSTRMFilename(fileName);
     const { title, year, season, episode } = this.extractMediaInfo(fileName);
     
+    // Generate STRM content to get short link
+    const webdav = new (await import('./webdav')).WebDAVGenerator(this.env, this.request);
+    const strmContent = await webdav.generateSTRMContent(torrentName, 'TORRENT_ID', fileName, file.link);
+    const strmShortUrl = strmContent.content.trim();
+    
     return `<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -1923,6 +2067,18 @@ export class HTMLBrowser {
                     <dt class="text-sm text-muted-foreground">Status:</dt>
                     <dd class="text-sm font-medium">
                       <span class="badge badge-success">${file.state}</span>
+                    </dd>
+                  </div>
+                  <div class="flex justify-between">
+                    <dt class="text-sm text-muted-foreground">STRM Short Link:</dt>
+                    <dd class="text-sm font-medium">
+                      <code class="text-xs bg-gray-100 dark:bg-gray-800 px-1 rounded">${strmShortUrl}</code>
+                    </dd>
+                  </div>
+                  <div class="flex justify-between">
+                    <dt class="text-sm text-muted-foreground">Cached URL:</dt>
+                    <dd class="text-sm font-medium">
+                      <code class="text-xs bg-gray-100 dark:bg-gray-800 px-1 rounded">${file.link || 'Not cached'}</code>
                     </dd>
                   </div>
                 </dl>

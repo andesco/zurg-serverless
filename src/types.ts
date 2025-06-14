@@ -2,6 +2,7 @@ export interface Env {
   DB: D1Database;
   RD_TOKEN: string;
   STRM_TOKEN?: string;
+  API_ACCOUNT_ID?: string;
   BASE_URL?: string;
   REFRESH_INTERVAL_SECONDS?: string;
   API_TIMEOUT_SECONDS?: string;
@@ -119,6 +120,7 @@ export interface DirectoryMap {
 export interface CacheMetadata {
   lastRefresh: number;
   libraryChecksum: string;
+  torrentIds?: string[];
 }
 
 export interface STRMContent {

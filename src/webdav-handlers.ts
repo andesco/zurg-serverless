@@ -51,7 +51,7 @@ export async function handleWebDAVRequest(
     const { fetchTorrentDetails } = await import('./handlers');
     const torrent = await fetchTorrentDetails(torrentName, env, storage);
     
-    if (!torrent || Object.keys(torrent.selectedFiles).length === 0) {
+    if (!torrent) {
       return new Response(`<?xml version="1.0" encoding="utf-8"?>
 <d:error xmlns:d="DAV:">
   <d:resource-not-found/>
@@ -61,6 +61,7 @@ export async function handleWebDAVRequest(
       });
     }
     
+    // Always generate STRM files for all files in torrent, regardless of link availability
     const xml = webdav.generateTorrentFilesResponse(torrent, mountType);
     
     return new Response(xml, {
@@ -174,12 +175,41 @@ export async function handleWebDAVGET(
       }
 
       const file = torrent.selectedFiles[actualFilename];
-      if (file.state !== 'ok_file' || !file.link) {
-        return new Response('File not available', { status: 404 });
+      if (file.state !== 'ok_file') {
+        // File not in good state, but still generate STRM with fallback
+        const strmContent = await webdav.generateSTRMContent(directory, torrent.id, actualFilename, null);
+        
+        return new Response(strmContent.content, {
+          status: 200,
+          headers: {
+            'Content-Type': 'application/x-mpegurl; charset=utf-8',
+            'Content-Length': strmContent.size.toString(),
+            'Cache-Control': 'no-cache',
+            'DAV': '1, 2'
+          }
+        });
       }
 
-      // Generate STRM content
-      const strmContent = await webdav.generateSTRMContent(directory, torrent.id, actualFilename, file.link);
+      // Try to get fresh download link if missing or expired
+      let downloadLink = file.link;
+      if (!downloadLink) {
+        try {
+          const { fetchFileDownloadLink } = await import('./handlers');
+          downloadLink = await fetchFileDownloadLink(torrent.id, actualFilename, env, storage);
+        } catch (error) {
+          console.warn(`⚠️ Failed to fetch download link for ${actualFilename}:`, error);
+          downloadLink = null;
+        }
+      }
+      
+      // Generate STRM content (with fallback if no valid link)
+      let strmContent;
+      try {
+        strmContent = await webdav.generateSTRMContent(directory, torrent.id, actualFilename, downloadLink);
+      } catch (error) {
+        console.error(`Failed to generate STRM content for ${actualFilename}, using fallback:`, error);
+        strmContent = await webdav.generateSTRMContent(directory, torrent.id, actualFilename, null);
+      }
       
       return new Response(strmContent.content, {
         status: 200,

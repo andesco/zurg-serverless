@@ -75,7 +75,7 @@ async function generateStatusPage(env: Env, request: Request): Promise<string> {
 }
 
 export default {
-  async fetch(request: Request, env: Env): Promise<Response> {
+  async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
     console.log('=== WORKER STARTED ===');
     try {
       const authResponse = checkBasicAuth(request, env);
@@ -106,13 +106,205 @@ export default {
         }
       }
 
-      if (pathSegments[0] === 'admin' && pathSegments[1] === 'populate-cache') {
+      if (pathSegments[0] === 'admin' && pathSegments[1] === 'update-cache') {
         console.log('Manual cache population triggered');
         await populateAllTorrentDetails(env);
         return new Response('Cache population started', { 
           status: 200,
           headers: { 'Content-Type': 'text/plain' }
         });
+      }
+
+      // Admin endpoint to check cache progress and clear stale status
+      if (pathSegments[0] === 'admin' && pathSegments[1] === 'check-cache-progress') {
+        console.log('Checking cache progress and clearing stale refresh status');
+        const storage = new StorageManager(env);
+        await storage.cleanupStaleRefreshProgress();
+        
+        // Also force complete any "running" status
+        const currentStatus = await storage.getCacheRefreshStatus();
+        if (currentStatus && currentStatus.status === 'running') {
+          await storage.completeCacheRefresh(currentStatus.id, false, 'Manually cleared via admin endpoint');
+        }
+        
+        return new Response('Cache progress checked and stale status cleared', { 
+          status: 200,
+          headers: { 'Content-Type': 'text/plain' }
+        });
+      }
+
+      // Test endpoint to check IP addresses for RD API calls
+      if (pathSegments[0] === 'admin' && pathSegments[1] === 'test-ip-addresses') {
+        console.log('Testing IP addresses for RD API calls');
+        const rd = new RealDebridClient(env);
+        
+        // Make multiple API calls and log IP addresses
+        const results = [];
+        for (let i = 0; i < 10; i++) {
+          try {
+            console.log(`Making API call ${i + 1}/10...`);
+            const response = await fetch('https://real-debrid.com/api/v1/user', {
+              headers: { 'Authorization': `Bearer ${env.RD_TOKEN}` }
+            });
+            
+            // Log request details
+            const result = {
+              call: i + 1,
+              status: response.status,
+              cfRay: response.headers.get('cf-ray'),
+              cfConnectingIp: request.headers.get('cf-connecting-ip'),
+              xForwardedFor: request.headers.get('x-forwarded-for'),
+              timestamp: new Date().toISOString()
+            };
+            
+            results.push(result);
+            console.log(`Call ${i + 1}: Status ${response.status}, CF-Ray: ${result.cfRay}`);
+            
+            // Wait 2 seconds between calls
+            if (i < 9) {
+              await new Promise(resolve => setTimeout(resolve, 2000));
+            }
+          } catch (error) {
+            console.error(`API call ${i + 1} failed:`, error);
+            results.push({
+              call: i + 1,
+              error: error instanceof Error ? error.message : 'Unknown error',
+              timestamp: new Date().toISOString()
+            });
+          }
+        }
+        
+        return new Response(JSON.stringify(results, null, 2), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' }
+        });
+      }
+
+      // New progress-tracked cache refresh endpoint
+      if (pathSegments[0] === 'refresh-cache') {
+        if (request.method !== 'POST') {
+          return new Response('Method not allowed', { status: 405 });
+        }
+        
+        console.log('Starting background cache refresh...');
+        try {
+          const storage = new StorageManager(env);
+          
+          // Check if refresh is already running
+          const currentStatus = await storage.getCacheRefreshStatus();
+          if (currentStatus && currentStatus.status === 'running') {
+            // Check if the refresh is stale (older than 10 minutes with no progress)
+            const now = Date.now();
+            const isStale = (now - currentStatus.started_at) > (10 * 60 * 1000) && 
+                           currentStatus.processed_torrents === 0;
+            
+            if (isStale) {
+              console.log(`Clearing stale refresh: ${currentStatus.id}`);
+              await storage.completeCacheRefresh(currentStatus.id, false, 'Cleared stale refresh');
+            } else {
+              const minutesAgo = Math.round((now - currentStatus.started_at) / (60 * 1000));
+              return new Response(JSON.stringify({
+                success: false,
+                message: 'Cache refresh already in progress',
+                refreshId: currentStatus.id,
+                details: `Started ${minutesAgo} minutes ago, processed ${currentStatus.processed_torrents}/${currentStatus.total_torrents} torrents`,
+                progress: currentStatus.total_torrents > 0 ? Math.round((currentStatus.processed_torrents / currentStatus.total_torrents) * 100) : 0
+              }), {
+                status: 409,
+                headers: { 'Content-Type': 'application/json' }
+              });
+            }
+          }
+          
+          // Start background refresh using waitUntil
+          const uncachedTorrents = await storage.getAllUncachedTorrents();
+          const refreshId = await storage.startCacheRefresh(uncachedTorrents.length);
+          
+          // Background processing - don't wait for completion
+          if (ctx && ctx.waitUntil) {
+            ctx.waitUntil((async () => {
+              try {
+                await populateAllTorrentDetails(env, refreshId);
+              } catch (error) {
+                console.error('Background cache refresh failed:', error);
+              }
+            })());
+          } else {
+            // Fallback: start the process without waitUntil (it will still work)
+            console.warn('ctx.waitUntil not available, starting refresh without background protection');
+            populateAllTorrentDetails(env, refreshId).catch(error => {
+              console.error('Cache refresh failed:', error);
+            });
+          }
+          
+          return new Response(JSON.stringify({
+            success: true,
+            message: 'Cache refresh started',
+            refreshId,
+            totalTorrents: uncachedTorrents.length
+          }), {
+            status: 200,
+            headers: { 'Content-Type': 'application/json' }
+          });
+          
+        } catch (error) {
+          console.error('Failed to start cache refresh:', error);
+          const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+          return new Response(JSON.stringify({
+            success: false,
+            message: 'Failed to start cache refresh',
+            error: errorMessage,
+            details: error instanceof Error ? error.stack : undefined
+          }), {
+            status: 500,
+            headers: { 'Content-Type': 'application/json' }
+          });
+        }
+      }
+
+      // Cache refresh status endpoint
+      if (pathSegments[0] === 'refresh-status') {
+        if (request.method !== 'GET') {
+          return new Response('Method not allowed', { status: 405 });
+        }
+        
+        try {
+          const storage = new StorageManager(env);
+          const url = new URL(request.url);
+          const refreshId = url.searchParams.get('id');
+          
+          const status = await storage.getCacheRefreshStatus(refreshId ? parseInt(refreshId) : undefined);
+          
+          if (!status) {
+            return new Response(JSON.stringify({
+              success: false,
+              message: 'No refresh status found'
+            }), {
+              status: 404,
+              headers: { 'Content-Type': 'application/json' }
+            });
+          }
+          
+          return new Response(JSON.stringify({
+            success: true,
+            ...status,
+            progress: status.total_torrents > 0 ? Math.round((status.processed_torrents / status.total_torrents) * 100) : 0
+          }), {
+            status: 200,
+            headers: { 'Content-Type': 'application/json' }
+          });
+          
+        } catch (error) {
+          console.error('Failed to get refresh status:', error);
+          return new Response(JSON.stringify({
+            success: false,
+            message: 'Failed to get refresh status',
+            error: error instanceof Error ? error.message : 'Unknown error'
+          }), {
+            status: 500,
+            headers: { 'Content-Type': 'application/json' }
+          });
+        }
       }
 
       if (pathSegments[0] === 'test-rd-webdav') {
@@ -191,6 +383,28 @@ export default {
   async scheduled(event: ScheduledEvent, env: Env, ctx: ExecutionContext): Promise<void> {
     console.log('=== CRON JOB: Cache population ===');
     try {
+      const storage = new StorageManager(env);
+      
+      // Clean up any stale refresh progress first
+      await storage.cleanupStaleRefreshProgress();
+      
+      // Check if there's already a refresh in progress
+      const currentStatus = await storage.getCacheRefreshStatus();
+      if (currentStatus && currentStatus.status === 'running') {
+        // Check if the refresh is stale (older than 30 minutes with no progress)
+        const now = Date.now();
+        const isStale = (now - currentStatus.started_at) > (30 * 60 * 1000);
+        
+        if (isStale) {
+          console.log(`Clearing stale refresh from cron: ${currentStatus.id}`);
+          await storage.completeCacheRefresh(currentStatus.id, false, 'Cleared stale refresh (cron timeout)');
+        } else {
+          console.log('Cache refresh already in progress, skipping cron job');
+          return;
+        }
+      }
+      
+      // Start cache population
       await populateAllTorrentDetails(env);
       console.log('✅ Scheduled cache population complete');
     } catch (error) {
@@ -289,23 +503,32 @@ async function handleFilesRequest(pathSegments: string[], storage: StorageManage
       return new Response('File not found', { status: 404 });
     }
     
-    // Fetch fresh download link when downloading STRM file (one of the 3 allowed scenarios)
+    // Try to get fresh download link if missing, but proceed regardless
     let downloadLink = file.link;
     if (!downloadLink) {
       console.log(`🔗 Fetching fresh download link for STRM download: ${fileName}`);
-      downloadLink = await fetchFileDownloadLink(torrent.id, fileName, env, storage);
-      if (!downloadLink) {
-        return new Response('Download link not available', { status: 404 });
+      try {
+        downloadLink = await fetchFileDownloadLink(torrent.id, fileName, env, storage);
+      } catch (error) {
+        console.warn(`⚠️ Failed to fetch download link for ${fileName}:`, error);
+        downloadLink = null;
       }
     }
     
+    // Always generate STRM content (with fallback if no valid link)
     const webdav = new (await import('./webdav')).WebDAVGenerator(env, request);
-    const strmContent = await webdav.generateSTRMContent(torrentName, torrent.id, fileName, downloadLink);
+    let strmContent;
+    try {
+      strmContent = await webdav.generateSTRMContent(torrentName, torrent.id, fileName, downloadLink);
+    } catch (error) {
+      console.error(`Failed to generate STRM content for ${fileName}, using fallback:`, error);
+      strmContent = await webdav.generateSTRMContent(torrentName, torrent.id, fileName, null);
+    }
     
     return new Response(strmContent.content, {
       status: 200,
       headers: {
-        'Content-Type': 'application/x-stream',
+        'Content-Type': 'application/octet-stream',
         'Content-Disposition': `attachment; filename="${strmFileName}"`,
         'Content-Length': strmContent.size.toString()
       }

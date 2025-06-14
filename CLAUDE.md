@@ -21,6 +21,38 @@
 5. **STRM Handler** - Generates streaming files for media players
 6. **Real-Debrid Client** - API integration
 
+## Environment Configuration
+
+### Configuration Files
+- **`.dev.vars`** - Local development secrets (git-ignored)
+- **`wrangler.local.toml`** - Personal development and production configuration
+- **`wrangler.toml`** - Template configuration for Deploy button
+
+### Local Development Workflow
+```bash
+# 1. Set up local secrets
+cp .dev.vars.example .dev.vars  # Create from template
+# Edit .dev.vars with your Real-Debrid token: RD_TOKEN="your_token_here"
+
+# 2. Start local development
+wrangler dev --config wrangler.local.toml
+
+# 3. Deploy to production
+wrangler deploy --config wrangler.local.toml --env production
+```
+
+### Environment Variables by Environment
+
+#### Local Development (default)
+- Uses `.dev.vars` for secrets like `RD_TOKEN`, `STRM_TOKEN`, `USERNAME`, `PASSWORD`
+- Local D1 database with faster refresh intervals for testing
+- Smaller page sizes for quicker iteration
+
+#### Production 
+- Uses encrypted Cloudflare secrets set via `wrangler secret put RD_TOKEN --env production`
+- Production D1 database with optimized settings
+- Custom domain routing and cron triggers enabled
+
 ## Deployment Methods
 
 ### Deploy to Cloudflare Button
@@ -28,11 +60,16 @@
 - Cloudflare runs `npx wrangler deploy` automatically
 - For new users and one-click deployment
 
-### Manual Deployment
+### Manual Deployment (Local Development)
 - Uses `wrangler.local.toml` with environment configs
-- Run `npm run deploy-local` for production
-- Run `npm run deploy-staging` for staging
-- For development and testing
+- **Two environments only**: Local Development + Production
+- Local development uses `wrangler dev` with local D1 database
+- Production deployment: `wrangler deploy --config wrangler.local.toml --env production`
+
+### Environment Strategy
+- **Local Development**: `wrangler dev` → Uses `.dev.vars` for secrets, local D1 storage
+- **Production**: `wrangler deploy --env production` → Uses encrypted secrets, production D1 database
+- **No staging environment** → Simplified workflow, reduced API costs and resource usage
 
 ## Project Structure
 
@@ -158,6 +195,15 @@ npx wrangler secret put RD_TOKEN --env production
 ### Release Process
 When asked to "commit to main", "push to origin main", or "ready a release":
 
+#### Using Git Alias (Recommended)
+```bash
+# Use the custom git alias for quick releases
+git zurg-release
+git commit -m "Release X.Y.Z: Description of changes"
+git push origin main
+```
+
+#### Manual Process
 ```bash
 # Squash merge claude commits into clean release commit
 git checkout main
@@ -165,6 +211,8 @@ git merge --squash claude
 git commit -m "Release X.Y.Z: Description of changes"
 git push origin main
 ```
+
+**Git Alias Setup**: `git config --global alias.zurg-release '!f() { git checkout main && git merge --squash claude && echo "Ready to commit release. Run: git commit -m \"Release X.Y.Z: Description\""; }; f'`
 
 ### Benefits
 - **Local `claude`**: Preserves all development commits and history
@@ -317,7 +365,28 @@ New structure:
 1 cached, 65 pending, 7 duplicates
 ```
 
-### 2025-06-08 - Successful Production Deployment (v1.0.1)
+### 2025-06-08 - Database Configuration Fix & Schema Application
+- ❌ **ISSUE**: `D1_ERROR: no such table: cache_metadata` on both worker deployments
+- ✅ **ROOT CAUSE**: Database ID changed and schema not applied to new database
+- ✅ **FIXED**: Updated database ID to `af42ed0a-06bc-47e5-81a1-8c078e4286d7`
+- ✅ **APPLIED**: Full schema.sql to zurg-serverless-private database
+- ✅ **DEPLOYED**: Latest code to both workers:
+  - `zurg-serverless` (main production): Version `0eb865cf-f249-4955-8165-c3e44c3968ce`
+  - `zurg-serverless-private`: Version `d2cdc2f2-b6fc-44db-84ac-d14828d4d471`
+
+#### Database Schema Applied:
+- ✅ **14 queries executed**: All tables, indexes, and triggers created
+- ✅ **6 tables created**: cache_metadata, torrents, directories, strm_cache, strm_mappings, cache_settings
+- ✅ **Database size**: 0.08 MB with 25 rows written
+- ✅ **Both workers connected**: Using same database with full schema
+
+#### Working URLs:
+- **Main Production**: https://serverless.andrewe.link/files/
+- **Private Instance**: https://zurg-serverless-private.andrewe.workers.dev/files/
+
+Both deployments now have proper database connectivity and should work without the cache_metadata table error.
+
+
 - ✅ **DEPLOYED**: All latest changes successfully deployed to production
 - ✅ **URL**: https://serverless.andrewe.link 
 - ✅ **Version ID**: eaa8a4e1-dd72-4b2b-9fe6-75f811f5ef88
@@ -379,5 +448,85 @@ The Deploy to Cloudflare button is designed for quick deployment of applications
 5. Application works securely with encrypted secrets
 
 This approach ensures security while maintaining the convenience of one-click deployment for the application structure and non-sensitive configuration.
+
+### 2025-06-11 - Proactive New Torrent Caching
+- ✅ **Enhanced torrent list refresh**: Now detects new torrents and proactively fetches details for up to 5 newest ones
+- ✅ **Improved media player experience**: Anticipates that media players (like Infuse) will immediately browse new torrent directories
+- ✅ **Smart caching strategy**: Fetches details for 5 most recent new torrents during root browse, leaves rest for background processing
+- ✅ **Performance optimization**: Reduces cascade of individual API calls when media players explore new content
+- ✅ **Worker timeout safety**: Conservative limit of 5 torrents ensures execution stays well under 30-second limit
+
+#### New API Call Pattern:
+**For 13 new torrents discovered during root browse:**
+- **Root browse**: 1 torrent list call + 5 torrent details calls = **6 total API calls**
+- **Immediate availability**: 5 newest torrents ready for browsing without delays
+- **Background processing**: 8 remaining torrents cached by hourly cron job
+- **User experience**: Media players can immediately browse most recent content
+
+#### Technical Implementation:
+- **Detection**: Compares current torrent IDs with `getCachedTorrentIds()` to identify new torrents
+- **Selection**: Takes first 5 torrents from new torrent list (most recent additions)
+- **Caching**: Fetches full torrent details and updates directory map with file information
+- **Error handling**: Failed fetches don't block the refresh process
+- **Logging**: Clear feedback about proactive vs background caching
+
+This change transforms "Zurg Serverless" from purely reactive caching to intelligently proactive caching for new content.
+
+### 2025-06-11 - Fixed Cron Job Cache Population Issues
+- ✅ **Fixed stale "In Progress" status**: Cron job now properly cleans up stale refresh progress before starting
+- ✅ **Enhanced progress tracking**: Improved cache population with better error handling and completion tracking
+- ✅ **Stale refresh cleanup**: Added `cleanupStaleRefreshProgress()` method to handle stuck refresh states
+- ✅ **Reduced batch size**: Changed from 10 to 5 torrents per batch for better reliability
+- ✅ **Better logging**: Added success/failure counts and detailed completion messages
+- ✅ **Cron job protection**: Prevents multiple simultaneous cache refreshes and clears stale states
+- ✅ **Admin endpoint**: Added `/admin/clear-stale-refresh` to manually clear stuck refresh status
+
+#### Issues Resolved:
+- **"In Progress" stuck for days**: Cron job creates proper refresh tracking and completion
+- **Multiple refresh entries**: Cleanup prevents accumulation of stale progress records
+- **Failed cron execution**: Better error handling and batch processing reliability
+- **Timeout handling**: Stale refreshes older than 30 minutes are automatically cleared
+
+#### New Admin Endpoints:
+- `/admin/update-cache` - Manually trigger cache population
+- `/admin/check-cache-progress` - Check cache progress and clear stuck refresh status
+
+#### Technical Improvements:
+- **Batch processing**: 5 torrents per batch with 1-second delays between batches
+- **Progress tracking**: Real-time updates with current torrent name and counts
+- **Error resilience**: Failed individual torrents don't stop the entire process
+- **Completion guarantee**: All cache operations now properly mark as "completed" or "failed"
+
+This fixes the persistent "In Progress" status that was preventing proper cache status display and ensures the hourly cron job works reliably.
+
+### 2025-06-11 - Conservative API Rate Limiting for Cron Jobs
+- ✅ **Implemented conservative API batching**: 5 torrents per batch, max 100 torrents per cron job
+- ✅ **Adaptive delay strategy**: Fixed 20 seconds between all batches
+- ✅ **Real-Debrid API protection**: Respects ~200 requests per 10 minutes rate limiting
+- ✅ **Partial completion handling**: Properly tracks progress when hitting 100-torrent limit per cron job
+- ✅ **Multi-hour processing**: Large torrent batches (1000+) spread across multiple cron cycles
+
+#### API Rate Limiting Strategy:
+```
+Batch 1: 5 torrents → wait 20 seconds
+Batch 2: 5 torrents → wait 20 seconds  
+Batch 3: 5 torrents → wait 20 seconds
+...
+Batch 20: 5 torrents → done (100 total)
+```
+
+#### Performance Calculations:
+- **Per cron job**: 100 torrents maximum in ~10 minutes
+- **API calls**: 5 calls + 20s + 5 calls + 20s + ... = well under RD limits
+- **Large scenarios**: 1000 new torrents = 10 hours to fully cache (completely reasonable)
+- **Immediate access**: 5 newest torrents still cached instantly during root browse
+
+#### Benefits:
+- **Never hits RD rate limits** - conservative 20 second delays
+- **Reliable execution** - stays well under Worker 10-minute timeout
+- **Graceful scaling** - handles any number of new torrents over time
+- **User experience** - immediate access to recent content, background processing for older content
+
+This ensures "Zurg Serverless" can handle massive torrent library growth while being a good API citizen to Real-Debrid.
 
 

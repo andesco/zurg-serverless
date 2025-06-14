@@ -1,20 +1,26 @@
-# Template wrangler.toml for "Deploy to Cloudflare" button
-# This file should work for new deployments without personal config
+# wrangler.toml for Deploy to Cloudflare button:
+# https://developers.cloudflare.com/workers/platform/deploy-buttons/
 
 name = "zurg-serverless"
 main = "src/worker.ts"
 compatibility_date = "2024-12-01"
 compatibility_flags = ["nodejs_compat"]
+preview_urls = false  # Disable versioned preview URLs
 
-# Default configuration for new deployments
+[triggers]
+crons = ["0 */1 * * *"]  # hourly cron triggers for cache refreshes
+
 [vars]
-# These are safe defaults - secrets will be prompted during deployment
+RD_TOKEN = ""
+USERNAME = ""
+PASSWORD = ""
+API_ACCOUNT_ID = ""  # auto-populated during deployment
 REFRESH_INTERVAL_SECONDS = "15"
 API_TIMEOUT_SECONDS = "30"
 TORRENTS_PAGE_SIZE = "1000"
+WORKER_NAME = "zurg-serverless"
 
-# The Deploy button will create this database automatically
 [[d1_databases]]
 binding = "DB"
 database_name = "zurg-serverless-db"
-database_id = "" # Will be populated during deployment
+database_id = "" # auto-populated during deployment

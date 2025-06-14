@@ -5,8 +5,9 @@
   "main": "src/worker.ts",
   "scripts": {
     "dev": "wrangler dev --config wrangler.local.toml",
+    "deploy": "./deploy.sh",
     "deploy-local": "wrangler deploy --config wrangler.local.toml --env production",
-    "deploy-staging": "wrangler deploy --config wrangler.local.toml --env staging"
+    "deploy-staging": "wrangler deploy --config wrangler.local.toml --env staging",
   },
   "keywords": [
     "real-debrid",

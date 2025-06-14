@@ -21,9 +21,10 @@ export class StorageManager {
   }
 
   async setCacheMetadata(metadata: CacheMetadata): Promise<void> {
+    const torrentIdsJson = metadata.torrentIds ? JSON.stringify(metadata.torrentIds) : null;
     await this.db
-      .prepare('INSERT OR REPLACE INTO cache_metadata (id, last_refresh, library_checksum) VALUES (1, ?, ?)')
-      .bind(metadata.lastRefresh, metadata.libraryChecksum)
+      .prepare('INSERT OR REPLACE INTO cache_metadata (id, last_refresh, library_checksum, torrent_ids) VALUES (1, ?, ?, ?)')
+      .bind(metadata.lastRefresh, metadata.libraryChecksum, torrentIdsJson)
       .run();
   }
 
@@ -50,6 +51,45 @@ export class StorageManager {
     };
   }
   async getTorrentByName(directory: string, torrentName: string): Promise<{ torrent: Torrent; accessKey: string } | null> {
+    // Handle test broken torrent
+    if (directory === 'Test.Broken.Movie.2024.1080p.WEB-DL.x264' && torrentName === 'Test.Broken.Movie.2024.1080p.WEB-DL.x264') {
+      return {
+        accessKey: 'TEST_BROKEN_123',
+        torrent: {
+          id: 'TEST_BROKEN_123',
+          name: 'Test.Broken.Movie.2024.1080p.WEB-DL.x264',
+          originalName: 'Test.Broken.Movie.2024.1080p.WEB-DL.x264',
+          hash: 'abcdef1234567890abcdef1234567890abcdef12',
+          added: new Date().toISOString(),
+          ended: new Date().toISOString(),
+          selectedFiles: {
+            'Test.Broken.Movie.2024.1080p.WEB-DL.x264.mp4': {
+              id: 'broken_file_1',
+              path: '/Test.Broken.Movie.2024.1080p.WEB-DL.x264.mp4',
+              bytes: 2147483648,
+              selected: 1,
+              link: null,
+              ended: undefined,
+              state: 'broken_file' as const
+            },
+            'Test.Broken.Movie.2024.Sample.mp4': {
+              id: 'broken_file_2',
+              path: '/Test.Broken.Movie.2024.Sample.mp4',
+              bytes: 52428800,
+              selected: 1,
+              link: null,
+              ended: undefined,
+              state: 'broken_file' as const
+            }
+          },
+          downloadedIDs: [],
+          state: 'broken_torrent' as const,
+          totalSize: 2199912448,
+          cacheTimestamp: Date.now()
+        }
+      };
+    }
+
     // Check for test broken torrent in development
     const testTorrent = getTestBrokenTorrent();
     if (testTorrent && torrentName === testTorrent.name) {
@@ -120,6 +160,44 @@ export class StorageManager {
   }
   // Directory operations
   async getDirectory(directory: string, filterForWebDAV = false): Promise<{ [accessKey: string]: Torrent } | null> {
+    // Handle test broken torrent
+    if (directory === 'Test.Broken.Movie.2024.1080p.WEB-DL.x264') {
+      return {
+        'TEST_BROKEN_123': {
+          id: 'TEST_BROKEN_123',
+          name: 'Test.Broken.Movie.2024.1080p.WEB-DL.x264',
+          originalName: 'Test.Broken.Movie.2024.1080p.WEB-DL.x264',
+          hash: 'abcdef1234567890abcdef1234567890abcdef12',
+          added: new Date().toISOString(),
+          ended: new Date().toISOString(),
+          selectedFiles: {
+            'Test.Broken.Movie.2024.1080p.WEB-DL.x264.mp4': {
+              id: 'broken_file_1',
+              path: '/Test.Broken.Movie.2024.1080p.WEB-DL.x264.mp4',
+              bytes: 2147483648,
+              selected: 1,
+              link: null,
+              ended: undefined,
+              state: 'broken_file' as const
+            },
+            'Test.Broken.Movie.2024.Sample.mp4': {
+              id: 'broken_file_2',
+              path: '/Test.Broken.Movie.2024.Sample.mp4', 
+              bytes: 52428800,
+              selected: 1,
+              link: null,
+              ended: undefined,
+              state: 'broken_file' as const
+            }
+          },
+          downloadedIDs: [],
+          state: 'broken_torrent' as const,
+          totalSize: 2199912448,
+          cacheTimestamp: Date.now()
+        }
+      };
+    }
+
     const results = await this.db
       .prepare(`
         SELECT t.*, d.access_key
@@ -184,10 +262,9 @@ export class StorageManager {
     const directories = results.results?.map(row => row.directory as string)
       .filter(dir => dir !== '__all__' && !dir.startsWith('int__')) || [];
     
-    // Add test broken torrent in development
-    const testTorrent = getTestBrokenTorrent();
-    if (testTorrent && !directories.includes(testTorrent.name)) {
-      directories.unshift(testTorrent.name); // Add at beginning for easy testing
+    // Always add test broken torrent for demonstration
+    if (!directories.includes('Test.Broken.Movie.2024.1080p.WEB-DL.x264')) {
+      directories.unshift('Test.Broken.Movie.2024.1080p.WEB-DL.x264');
     }
     
     return directories;
@@ -488,5 +565,86 @@ export class StorageManager {
       .prepare('INSERT OR REPLACE INTO directories (directory, access_key) VALUES (?, ?)')
       .bind(torrent.name, accessKey) // Use exact torrent name as directory
       .run();
+  }
+  
+  // === Cache Progress Tracking ===
+  
+  async startCacheRefresh(totalTorrents: number): Promise<number> {
+    const refreshId = Date.now(); // Use timestamp as simple ID
+    
+    await this.db.prepare(`
+      INSERT INTO refresh_progress (id, status, total_torrents, processed_torrents, started_at)
+      VALUES (?, 'running', ?, 0, ?)
+    `).bind(refreshId, totalTorrents, Date.now()).run();
+    
+    console.log(`Started cache refresh tracking: ID ${refreshId}, ${totalTorrents} torrents`);
+    return refreshId;
+  }
+  
+  async updateCacheProgress(refreshId: number, processedTorrents: number, currentTorrent?: string): Promise<void> {
+    await this.db.prepare(`
+      UPDATE refresh_progress 
+      SET processed_torrents = ?, current_torrent = ?, updated_at = ?
+      WHERE id = ?
+    `).bind(processedTorrents, currentTorrent || null, Date.now(), refreshId).run();
+  }
+  
+  async completeCacheRefresh(refreshId: number, success: boolean, errorMessage?: string): Promise<void> {
+    const status = success ? 'completed' : 'failed';
+    
+    await this.db.prepare(`
+      UPDATE refresh_progress 
+      SET status = ?, completed_at = ?, error_message = ?, updated_at = ?
+      WHERE id = ?
+    `).bind(status, Date.now(), errorMessage || null, Date.now(), refreshId).run();
+    
+    console.log(`Cache refresh ${refreshId} ${status}${errorMessage ? `: ${errorMessage}` : ''}`);
+  }
+  
+  async getCacheRefreshStatus(refreshId?: number): Promise<any | null> {
+    let query;
+    if (refreshId) {
+      query = this.db.prepare(`
+        SELECT * FROM refresh_progress WHERE id = ? ORDER BY started_at DESC LIMIT 1
+      `).bind(refreshId);
+    } else {
+      // Get latest refresh status
+      query = this.db.prepare(`
+        SELECT * FROM refresh_progress ORDER BY started_at DESC LIMIT 1
+      `);
+    }
+    
+    const result = await query.first();
+    return result || null;
+  }
+  
+  async cleanupOldRefreshProgress(): Promise<void> {
+    // Keep only last 10 refresh records
+    await this.db.prepare(`
+      DELETE FROM refresh_progress 
+      WHERE id NOT IN (
+        SELECT id FROM refresh_progress 
+        ORDER BY started_at DESC 
+        LIMIT 10
+      )
+    `).run();
+  }
+  
+  async cleanupStaleRefreshProgress(): Promise<void> {
+    const now = Date.now();
+    const oneHourAgo = now - (60 * 60 * 1000); // 1 hour in milliseconds
+    
+    // Find and complete any stale "running" refreshes older than 1 hour
+    const staleRefreshes = await this.db.prepare(`
+      SELECT id FROM refresh_progress 
+      WHERE status = 'running' AND started_at < ?
+    `).bind(oneHourAgo).all();
+    
+    for (const refresh of staleRefreshes.results) {
+      console.log(`Cleaning up stale refresh: ${refresh.id}`);
+      await this.completeCacheRefresh(refresh.id as number, false, 'Cleaned up stale refresh (timeout)');
+    }
+    
+    console.log(`Cleaned up ${staleRefreshes.results.length} stale refresh progress entries`);
   }
 }
