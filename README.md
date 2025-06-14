@@ -4,6 +4,8 @@ Share your Real Debrid library through a serverless WebDAV endpoint, using .STRM
 
 [![Deploy to Cloudflare Workers](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/andesco/zurg-serverless)
 
+<img src="screenshot.webp" alt="Zurg Serverless Interface" style="max-height: 768px; width: 100%;">
+
 ## Features
 
 ### Dual Interface
